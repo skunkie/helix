@@ -108,3 +108,40 @@ func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response,
 	}
 	return rsps, errs, nil
 }
+
+// Send does a HTTP-over-UDP broadcast a given number of times.
+func Send(req *http.Request, repeats int, iface *net.Interface) error {
+	var listenAddr *net.UDPAddr
+	if iface != nil {
+		var err error
+		listenAddr, err = udpIPv4AddrForInterface(iface)
+		if err != nil {
+			return fmt.Errorf("could not find address for interface %s: %w", iface.Name, err)
+		}
+	}
+
+	conn, err := net.ListenUDP("udp", listenAddr)
+	if err != nil {
+		return fmt.Errorf("could not listen on UDP: %w", err)
+	}
+	defer conn.Close()
+
+	if deadline, ok := req.Context().Deadline(); ok {
+		conn.SetDeadline(deadline)
+	}
+
+	addr, err := net.ResolveUDPAddr("udp", req.Host)
+	if err != nil {
+		return fmt.Errorf("could not resolve %v to host:port: %w", req.Host, err)
+	}
+
+	packet := serializeRequest(req)
+
+	for i := 0; i < repeats; i++ {
+		if _, err := conn.WriteTo(packet, addr); err != nil {
+			return fmt.Errorf("could not send discover packet: %w", err)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return nil
+}

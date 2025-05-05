@@ -50,6 +50,9 @@ type (
 
 		PresentationURL string
 
+		// bootID is a number that is updated when the device reboots.
+		bootID uint
+
 		mu           sync.RWMutex
 		serviceByURN map[URN]service
 	}
@@ -232,4 +235,25 @@ func (d *Device) Handle(urn URN, id ServiceID, doc scpd.Document, handler soap.I
 		SOAPInterface: handler,
 		SCPD:          doc,
 	}
+}
+
+// BootID returns the bootID.
+func (d *Device) BootID() uint {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.bootID
+}
+
+// SetBootID sets the bootID.
+func (d *Device) SetBootID(id uint) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.bootID = id
+}
+
+// IncrementBootID increments the bootID.
+func (d *Device) IncrementBootID() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.bootID++
 }

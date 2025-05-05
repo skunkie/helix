@@ -87,5 +87,8 @@ Loop:
 
 		log.Info("served HTTPU responses")
 	}
-	return nil
+}
+
+func (s *Server) Running() bool {
+	return s.conn != nil
 }
