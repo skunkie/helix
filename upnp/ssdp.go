@@ -9,9 +9,12 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
+	"time"
 
 	"github.com/ethulhu/helix/logger"
 	"github.com/ethulhu/helix/upnp/httpu"
@@ -21,6 +24,9 @@ import (
 const (
 	discoverMethod = "M-SEARCH"
 	notifyMethod   = "NOTIFY"
+	notifyAlive    = "ssdp:alive"
+	notifyUpdate   = "ssdp:update"
+	notifyByeBye   = "ssdp:byebye"
 
 	ssdpCacheControl = "max-age=300"
 )
@@ -89,14 +95,14 @@ func DiscoverDevices(ctx context.Context, urn URN, iface *net.Interface) ([]*Dev
 }
 
 // BroadcastDevice broadcasts the presence of a UPnP Device, with its SSDP/SCPD served via HTTP at addr.
-func BroadcastDevice(d *Device, url string, iface *net.Interface) error {
+func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Interface, notifyInterval time.Duration) error {
 	conn, err := net.ListenMulticastUDP("udp", iface, ssdpBroadcastAddr)
 	if err != nil {
 		return fmt.Errorf("could not listen on %v: %v", ssdpBroadcastAddr, err)
 	}
 	defer conn.Close()
 
-	log, _ := logger.FromContext(context.TODO())
+	log, _ := logger.FromContext(ctx)
 	log.WithField("httpu.listener", ssdpBroadcastAddr).Info("serving HTTPU")
 	s := &httpu.Server{
 		Handler: func(r *http.Request) []httpu.Response {
@@ -113,11 +119,40 @@ func BroadcastDevice(d *Device, url string, iface *net.Interface) error {
 			}
 		},
 	}
+
+	go func() {
+		for {
+			var reqs []*http.Request
+			for _, urn := range d.allURNs() {
+				reqs = append(reqs, notifyAliveRequest(ctx, d, urn, url))
+			}
+			reqs = append(reqs, notifyUpdateRequest(ctx, d, url))
+
+			for _, req := range reqs {
+				delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond)))
+				go func(req *http.Request) {
+					if s.Running() {
+						<-time.After(delay)
+						err := httpu.Send(req, 1, iface)
+						if err != nil {
+							log.Warning(err.Error())
+						}
+						log := log.WithField("httpu.method", req.Method)
+						log = log.WithField("httpu.notification.type", req.Header.Get("Nt"))
+						log.Debug("sent alive message")
+					}
+				}(req)
+			}
+			<-time.After(notifyInterval)
+		}
+	}()
+
 	return s.Serve(conn)
 }
 
 func discoverRequest(ctx context.Context, urn URN) *http.Request {
-	req, _ := http.NewRequestWithContext(ctx, discoverMethod, discoverURL.String(), http.NoBody)
+	req, _ := http.NewRequestWithContext(ctx, discoverMethod, "", http.NoBody)
+	req.URL = discoverURL
 	req.Host = ssdpBroadcastAddr.String()
 	req.Header = http.Header{
 		"MAN": {`"ssdp:discover"`},
@@ -125,6 +160,94 @@ func discoverRequest(ctx context.Context, urn URN) *http.Request {
 		"ST":  {string(urn)},
 	}
 	return req
+}
+
+func notifyAliveRequest(ctx context.Context, d *Device, urn URN, url string) *http.Request {
+	req, _ := http.NewRequestWithContext(ctx, notifyMethod, "", http.NoBody)
+	req.URL = discoverURL
+	req.Host = ssdpBroadcastAddr.String()
+	req.Header = http.Header{
+		"Cache-Control":   {ssdpCacheControl},
+		"Location":        {url},
+		"Nt":              {string(urn)},
+		"Nts":             {notifyAlive},
+		"Server":          {fmt.Sprintf("%s %s", d.ModelName, d.ModelNumber)},
+		"Usn":             {fmt.Sprintf("%s::%s", d.UDN, urn)},
+		"BootID.upnp.org": {fmt.Sprintf("%d", d.BootID())},
+	}
+	return req
+}
+
+func notifyUpdateRequest(ctx context.Context, d *Device, url string) *http.Request {
+	bootID := d.BootID()
+	req, _ := http.NewRequestWithContext(ctx, notifyMethod, "", http.NoBody)
+	req.URL = discoverURL
+	req.Host = ssdpBroadcastAddr.String()
+	req.Header = http.Header{
+		"Location":            {url},
+		"Nt":                  {string(RootDevice)},
+		"Nts":                 {notifyUpdate},
+		"Usn":                 {d.UDN},
+		"BootID.upnp.org":     {fmt.Sprintf("%d", bootID)},
+		"NextBootID.upnp.org": {fmt.Sprintf("%d", bootID+1)},
+	}
+	return req
+}
+
+func notifyByeByeRequests(ctx context.Context, d *Device) []*http.Request {
+	var reqs []*http.Request
+	bootID := d.BootID()
+	for _, urn := range d.allURNs() {
+		req, _ := http.NewRequestWithContext(ctx, notifyMethod, "", http.NoBody)
+		req.URL = discoverURL
+		req.Host = ssdpBroadcastAddr.String()
+		req.Header = http.Header{
+			"Nt":              {string(urn)},
+			"Nts":             {notifyByeBye},
+			"Usn":             {fmt.Sprintf("%s::%s", d.UDN, urn)},
+			"BootID.upnp.org": {fmt.Sprintf("%d", bootID)},
+		}
+		reqs = append(reqs, req)
+	}
+	return reqs
+}
+
+// SendUpdateNotification sends a ssdp:update notification, then increments the BootID.
+func SendUpdateNotification(ctx context.Context, d *Device, url string, iface *net.Interface) error {
+	req := notifyUpdateRequest(ctx, d, url)
+	if err := httpu.Send(req, 1, iface); err != nil {
+		return err
+	}
+	d.IncrementBootID()
+	log, _ := logger.FromContext(ctx)
+	log.WithField("httpu.method", req.Method).
+		WithField("httpu.notification.type", req.Header.Get("Nts")).
+		Info("sent update notification")
+	return nil
+}
+
+func NotifyByeBye(ctx context.Context, d *Device, url string, iface *net.Interface) {
+	log, _ := logger.FromContext(ctx)
+
+	reqs := notifyByeByeRequests(ctx, d)
+
+	var wg sync.WaitGroup
+	wg.Add(len(reqs))
+	for _, req := range reqs {
+		delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond)))
+		go func(req *http.Request) {
+			defer wg.Done()
+			<-time.After(delay)
+			err := httpu.Send(req, 2, iface)
+			if err != nil {
+				log.Warning(err.Error())
+			}
+			log := log.WithField("httpu.method", req.Method)
+			log = log.WithField("httpu.notification.type", req.Header.Get("Nt"))
+			log.Debug("sent byebye message")
+		}(req)
+	}
+	wg.Wait()
 }
 
 func handleDiscover(r *http.Request, d *Device, url string) []httpu.Response {
@@ -142,22 +265,25 @@ func handleDiscover(r *http.Request, d *Device, url string) []httpu.Response {
 		ok = ok || urn == st
 	}
 	if st == All || ok {
+		bootID := fmt.Sprintf("%d", d.BootID())
 		responses := []httpu.Response{{
-			"CACHE-CONTROL": ssdpCacheControl,
-			"EXT":           "",
-			"LOCATION":      url,
-			"SERVER":        fmt.Sprintf("%s %s", d.ModelName, d.ModelNumber),
-			"ST":            d.UDN,
-			"USN":           d.UDN,
+			"CACHE-CONTROL":   ssdpCacheControl,
+			"EXT":             "",
+			"LOCATION":        url,
+			"SERVER":          fmt.Sprintf("%s %s", d.ModelName, d.ModelNumber),
+			"ST":              d.UDN,
+			"USN":             d.UDN,
+			"BOOTID.UPNP.ORG": bootID,
 		}}
 		for _, urn := range d.allURNs() {
 			responses = append(responses, httpu.Response{
-				"CACHE-CONTROL": ssdpCacheControl,
-				"EXT":           "",
-				"LOCATION":      url,
-				"SERVER":        fmt.Sprintf("%s %s", d.ModelName, d.ModelNumber),
-				"ST":            string(urn),
-				"USN":           fmt.Sprintf("%s::%s", d.UDN, urn),
+				"CACHE-CONTROL":   ssdpCacheControl,
+				"EXT":             "",
+				"LOCATION":        url,
+				"SERVER":          fmt.Sprintf("%s %s", d.ModelName, d.ModelNumber),
+				"ST":              string(urn),
+				"USN":             fmt.Sprintf("%s::%s", d.UDN, urn),
+				"BOOTID.UPNP.ORG": bootID,
 			})
 		}
 		return responses

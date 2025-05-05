@@ -6,9 +6,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/ethulhu/helix/flag"
 	"github.com/ethulhu/helix/flags"
@@ -22,9 +27,10 @@ import (
 )
 
 var (
-	udn          = flag.Custom("udn", "", "UDN to broadcast (if unset, will generate one)", flags.UDN)
-	friendlyName = flag.Custom("friendly-name", "", "human-readable name to broadcast (if unset, will generate one)", flags.FriendlyName)
-	iface        = flag.Custom("interface", "", "interface to listen on (will try to find a Private IPv4 if unset)", flags.NetInterface)
+	udn            = flag.Custom("udn", "", "UDN to broadcast (if unset, will generate one)", flags.UDN)
+	friendlyName   = flag.Custom("friendly-name", "", "human-readable name to broadcast (if unset, will generate one)", flags.FriendlyName)
+	iface          = flag.Custom("interface", "", "interface to listen on (will try to find a Private IPv4 if unset)", flags.NetInterface)
+	notifyInterval = flag.Duration("notify-interval", time.Duration(30*time.Second), "interval between SSDP advertisements")
 
 	basePath = flag.Custom("path", "", "path to serve", flag.RequiredString)
 
@@ -39,7 +45,8 @@ func main() {
 	iface := (*iface).(*net.Interface)
 	udn := (*udn).(string)
 
-	log, _ := logger.FromContext(context.Background())
+	ctx := context.Background()
+	log, _ := logger.FromContext(ctx)
 
 	ip, err := netutil.SuitableIP(iface)
 	if err != nil {
@@ -95,12 +102,22 @@ func main() {
 	go func() {
 		log := log.WithField("http.listener", httpConn.Addr())
 		log.Info("serving HTTP")
-		if err := httpServer.Serve(httpConn); err != nil {
+		err := httpServer.Serve(httpConn)
+		if !errors.Is(err, http.ErrServerClosed) {
 			log.WithError(err).Fatal("could not serve HTTP")
 		}
 	}()
 
-	if err := upnp.BroadcastDevice(device, fmt.Sprintf("http://%v/upnp/", httpConn.Addr()), nil); err != nil {
-		log.WithError(err).Fatal("could not serve SSDP")
-	}
+	url := fmt.Sprintf("http://%v/upnp/", httpConn.Addr())
+	go func() {
+		if err := upnp.BroadcastDevice(ctx, device, url, iface, *notifyInterval); err != nil {
+			log.WithError(err).Fatal("could not serve SSDP")
+		}
+	}()
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	<-sig
+	upnp.NotifyByeBye(ctx, device, url, iface)
+	httpServer.Close()
 }
