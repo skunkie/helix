@@ -5,6 +5,7 @@
 package fileserver
 
 import (
+	"net/url"
 	"path"
 	"path/filepath"
 	"strings"
@@ -13,15 +14,17 @@ import (
 	"github.com/ethulhu/helix/upnpav/contentdirectory"
 )
 
-// TODO: encode these with base64 or base32 if a directory browser seems
-// unhappy; it may be having issues with spaces or "/".
-
 func pathForObjectID(basePath string, id upnpav.ObjectID) (string, bool) {
 	if id == contentdirectory.Root {
 		return basePath, true
 	}
 
-	maybePath := path.Clean(path.Join(basePath, string(id)))
+	decoded, err := url.QueryUnescape(string(id))
+	if err != nil {
+		return "", false
+	}
+
+	maybePath := path.Clean(path.Join(basePath, decoded))
 	if !strings.HasPrefix(maybePath, basePath) {
 		return "", false
 	}
@@ -30,7 +33,7 @@ func pathForObjectID(basePath string, id upnpav.ObjectID) (string, bool) {
 
 func objectIDForPath(basePath, p string) upnpav.ObjectID {
 	if relPath, err := filepath.Rel(basePath, p); err == nil && relPath != "." {
-		return upnpav.ObjectID(relPath)
+		return upnpav.ObjectID(url.QueryEscape(relPath))
 	}
 	return contentdirectory.Root
 }

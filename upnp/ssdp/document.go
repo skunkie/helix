@@ -16,6 +16,8 @@ var Version = SpecVersion{
 type (
 	Document struct {
 		XMLName     xml.Name    `xml:"urn:schemas-upnp-org:device-1-0 root"`
+		NSDLNA      string      `xml:"xmlns:dlna,attr"`
+		NSSEC       string      `xml:"xmlns:sec,attr"`
 		SpecVersion SpecVersion `xml:"specVersion"`
 		Device      Device      `xml:"device"`
 	}

@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+func init() {
+	_ = mime.AddExtensionType(".mp3", "audio/mpeg")
+	_ = mime.AddExtensionType(".mp4", "video/mp4")
+	_ = mime.AddExtensionType(".mkv", "video/x-matroska")
+}
+
 func IsAudioOrVideo(p string) bool {
 	ext := path.Ext(p)
 	mimeType := mime.TypeByExtension(ext)

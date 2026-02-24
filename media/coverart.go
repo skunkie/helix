@@ -5,7 +5,6 @@
 package media
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -103,7 +102,7 @@ func coverArtForDir(dir string, candidates []string) []string {
 type (
 	fs interface {
 		Stat(string) (os.FileInfo, error)
-		List(string) ([]os.FileInfo, error)
+		List(string) ([]os.DirEntry, error)
 	}
 
 	realFS struct{}
@@ -112,6 +111,6 @@ type (
 func (_ realFS) Stat(p string) (os.FileInfo, error) {
 	return os.Stat(p)
 }
-func (_ realFS) List(p string) ([]os.FileInfo, error) {
-	return ioutil.ReadDir(p)
+func (_ realFS) List(p string) ([]os.DirEntry, error) {
+	return os.ReadDir(p)
 }

@@ -134,8 +134,7 @@ func TestMarshalDIDLLite(t *testing.T) {
 	}{
 		{
 			didllite: &DIDLLite{},
-			want: `<?xml version="1.0" encoding="UTF-8"?>
-<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/"></DIDL-Lite>`,
+			want:     `<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/"></DIDL-Lite>`,
 		},
 		{
 			didllite: &DIDLLite{
@@ -162,8 +161,7 @@ func TestMarshalDIDLLite(t *testing.T) {
 					},
 				},
 			},
-			want: `<?xml version="1.0" encoding="UTF-8"?>
-<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">
+			want: `<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">
   <container id="64" parentID="0" restricted="0" searchable="1" childCount="4">
     <dc:title>Browse Folders</dc:title>
     <upnp:class>object.container.storageFolder</upnp:class>
@@ -209,8 +207,7 @@ func TestMarshalDIDLLite(t *testing.T) {
 					},
 				},
 			},
-			want: `<?xml version="1.0" encoding="UTF-8"?>
-<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">
+			want: `<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">
   <item id="69" parentID="12" restricted="0" searchable="1">
     <dc:title>hello</dc:title>
     <res protocolInfo="http-get:*:audio/mpeg:*" bitrate="131072">http://mew/purr.mp3</res>

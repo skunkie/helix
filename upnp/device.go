@@ -5,8 +5,10 @@
 package upnp
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -56,7 +58,20 @@ type (
 		mu           sync.RWMutex
 		serviceByURN map[URN]service
 	}
+
+	responseWriter struct {
+		bytes.Buffer
+		http.ResponseWriter
+	}
 )
+
+func (rw *responseWriter) Write(p []byte) (int, error) {
+	n, err := rw.Buffer.Write(p)
+	if err != nil {
+		return n, err
+	}
+	return rw.ResponseWriter.Write(p)
+}
 
 func newDevice(manifestURL *url.URL, manifest ssdp.Document) (*Device, error) {
 	d := &Device{
@@ -141,6 +156,9 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 		log, ctx := logger.FromContext(r.Context())
 		r = r.WithContext(ctx)
 
+		w.Header().Set("Ext", "")
+		w.Header().Set("Server", fmt.Sprintf("DLNADOC/1.50 UPnP/1.0 %s/1", d.ModelName))
+
 		log.AddField("http.client", r.RemoteAddr)
 		log.AddField("http.method", r.Method)
 		log.AddField("http.path", r.URL.Path)
@@ -152,7 +170,7 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 			}
 			fmt.Fprint(w, xml.Header)
 			w.Write(bytes)
-			log.Info("served SSDP manifest")
+			log.Debug("served SSDP manifest")
 			return
 		}
 
@@ -169,11 +187,25 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 				}
 				fmt.Fprint(w, xml.Header)
 				w.Write(bytes)
-				log.Info("served SCPD")
+				log.Debug("served SCPD")
 				return
 
 			case "POST":
-				soap.Handle(w, r, service.SOAPInterface)
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					log.WithError(err).Error("could not read request body")
+					http.Error(w, "could not read request body", http.StatusInternalServerError)
+					return
+				}
+				r.Body.Close()
+				r.Body = io.NopCloser(bytes.NewReader(body))
+
+				log.WithField("body", string(body)).Debug("SOAP request")
+
+				rw := &responseWriter{ResponseWriter: w}
+				soap.Handle(rw, r, service.SOAPInterface)
+
+				log.WithField("body", rw.String()).Debug("SOAP response")
 				return
 			}
 		}
@@ -185,6 +217,8 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 
 func (d *Device) manifest(basePath string) ssdp.Document {
 	doc := ssdp.Document{
+		NSDLNA:      "urn:schemas-dlna-org:device-1-0",
+		NSSEC:       "http://www.sec.co.kr/dlna",
 		SpecVersion: ssdp.Version,
 		Device: ssdp.Device{
 			DeviceType:   string(d.DeviceType),

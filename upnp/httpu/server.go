@@ -85,7 +85,7 @@ Loop:
 			}
 		}
 
-		log.Info("served HTTPU responses")
+		log.Debug("served HTTPU responses")
 	}
 }
 

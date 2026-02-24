@@ -269,7 +269,7 @@ func (d DIDLLite) String() string {
 	if err != nil {
 		panic(fmt.Sprintf("could not marshal DIDLLite: %v", err))
 	}
-	return xml.Header + string(bytes)
+	return string(bytes)
 }
 
 func (ed EncodedDIDLLite) MarshalText() ([]byte, error) {

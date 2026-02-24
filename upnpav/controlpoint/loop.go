@@ -88,7 +88,7 @@ func NewLoop() *Loop {
 		}
 		var protocolInfos []upnpav.ProtocolInfo
 
-		for _ = range time.Tick(1 * time.Second) {
+		for range time.Tick(1 * time.Second) {
 			log, ctx := logger.FromContext(ctx)
 
 			deviceChanged := udnOrDefault(prevDevice, "") != udnOrDefault(loop.device, "")
@@ -303,7 +303,7 @@ func (loop *Loop) enact(ctx context.Context, protocolInfos []upnpav.ProtocolInfo
 func manager(device *upnp.Device) connectionmanager.Interface {
 	managerClient, ok := device.SOAPInterface(connectionmanager.Version1)
 	if !ok {
-		panic(fmt.Sprintf("transport does not support ConnectionManager"))
+		panic("transport does not support ConnectionManager")
 	}
 	return connectionmanager.NewClient(managerClient)
 }
@@ -312,7 +312,7 @@ func manager(device *upnp.Device) connectionmanager.Interface {
 func transport(device *upnp.Device) avtransport.Interface {
 	transportClient, ok := device.SOAPInterface(avtransport.Version1)
 	if !ok {
-		panic(fmt.Sprintf("transport does not support AVTransport"))
+		panic("transport does not support AVTransport")
 	}
 	return avtransport.NewClient(transportClient)
 }

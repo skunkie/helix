@@ -5,6 +5,7 @@
 package fileserver
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/ethulhu/helix/upnpav"
@@ -24,8 +25,8 @@ func TestObjectIDForPath(t *testing.T) {
 		},
 		{
 			basePath: "/mnt/media",
-			path:     "/mnt/media/foo",
-			want:     upnpav.ObjectID("foo"),
+			path:     "/mnt/media/foo bar",
+			want:     upnpav.ObjectID(url.QueryEscape("foo bar")),
 		},
 	}
 
@@ -56,8 +57,8 @@ func TestParentIDForPath(t *testing.T) {
 		},
 		{
 			basePath: "/mnt/media",
-			path:     "/mnt/media/foo/bar",
-			want:     upnpav.ObjectID("foo"),
+			path:     "/mnt/media/foo bar/baz",
+			want:     upnpav.ObjectID(url.QueryEscape("foo bar")),
 		},
 	}
 
@@ -65,7 +66,7 @@ func TestParentIDForPath(t *testing.T) {
 		got := parentIDForPath(tt.basePath, tt.path)
 
 		if got != tt.want {
-			t.Errorf("[%d]: objectIDForPath(%q, %q) == %q, want %q", i, tt.basePath, tt.path, got, tt.want)
+			t.Errorf("[%d]: parentIDForPath(%q, %q) == %q, want %q", i, tt.basePath, tt.path, got, tt.want)
 		}
 	}
 }
@@ -85,8 +86,8 @@ func TestPathForObjectID(t *testing.T) {
 		},
 		{
 			basePath: "/mnt/media",
-			object:   upnpav.ObjectID("foo"),
-			want:     "/mnt/media/foo",
+			object:   upnpav.ObjectID(url.QueryEscape("foo bar")),
+			want:     "/mnt/media/foo bar",
 			wantOK:   true,
 		},
 		{

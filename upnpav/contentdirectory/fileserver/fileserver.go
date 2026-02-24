@@ -7,34 +7,59 @@ package fileserver
 
 import (
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethulhu/helix/media"
 	"github.com/ethulhu/helix/upnpav"
 	"github.com/ethulhu/helix/upnpav/contentdirectory"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/search"
+	"github.com/ethulhu/helix/xmltypes"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type (
-	contentDirectory struct {
+	ContentDirectory struct {
 		basePath string
 		baseURL  *url.URL
 
 		metadataCache media.MetadataCache
+
+		mu             sync.RWMutex
+		systemUpdateID uint
+	}
+
+	Features struct {
+		XMLName        xml.Name `xml:"Features"`
+		Xmlns          string   `xml:"xmlns,attr"`
+		XmlnsXSI       string   `xml:"xmlns:xsi,attr"`
+		SchemaLocation string   `xml:"xsi:schemaLocation,attr"`
+		Feature        Feature  `xml:"Feature"`
+	}
+
+	Feature struct {
+		Name       string      `xml:"name,attr"`
+		Version    int         `xml:"version,attr"`
+		Containers []Container `xml:"container"`
+	}
+
+	Container struct {
+		ID   string `xml:"id,attr"`
+		Type string `xml:"type,attr"`
 	}
 )
 
-func NewContentDirectory(basePath, baseURL string, metadataCache media.MetadataCache) (contentdirectory.Interface, error) {
+func NewContentDirectory(basePath, baseURL string, metadataCache media.MetadataCache) (*ContentDirectory, error) {
 	maybeURL, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse base URL: %w", err)
@@ -43,6 +68,14 @@ func NewContentDirectory(basePath, baseURL string, metadataCache media.MetadataC
 	absPath, err := filepath.Abs(basePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not get absolute path: %w", err)
+	}
+
+	cd := &ContentDirectory{
+		basePath: absPath,
+		baseURL:  maybeURL,
+
+		metadataCache:  metadataCache,
+		systemUpdateID: uint(time.Now().Unix()),
 	}
 
 	go func() {
@@ -56,15 +89,33 @@ func NewContentDirectory(basePath, baseURL string, metadataCache media.MetadataC
 		log.WithFields(fields).Info("finished warming metadata cache")
 	}()
 
-	return &contentDirectory{
-		basePath: absPath,
-		baseURL:  maybeURL,
-
-		metadataCache: metadataCache,
-	}, nil
+	return cd, nil
 }
 
-func (cd *contentDirectory) BrowseMetadata(_ context.Context, id upnpav.ObjectID) (*upnpav.DIDLLite, error) {
+func (cd *ContentDirectory) XGetFeatureList(_ context.Context) ([]string, error) {
+	features := Features{
+		Xmlns:          "urn:schemas-upnp-org:av:avs",
+		XmlnsXSI:       "http://www.w3.org/2001/XMLSchema-instance",
+		SchemaLocation: "urn:schemas-upnp-org:av:avs http://www.upnp.org/schemas/av/avs.xsd",
+		Feature: Feature{
+			Name:    "samsung.com_BASICVIEW",
+			Version: 1,
+			Containers: []Container{
+				{ID: "0", Type: "object.item.audioItem"},
+				{ID: "0", Type: "object.item.videoItem"},
+				{ID: "0", Type: "object.item.imageItem"},
+			},
+		},
+	}
+
+	bytes, err := xml.Marshal(features)
+	if err != nil {
+		return nil, err
+	}
+	return []string{string(bytes)}, nil
+}
+
+func (cd *ContentDirectory) BrowseMetadata(_ context.Context, id upnpav.ObjectID, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
 	fields := log.Fields{
 		"method": "BrowseMetadata",
 		"object": id,
@@ -111,7 +162,7 @@ func (cd *contentDirectory) BrowseMetadata(_ context.Context, id upnpav.ObjectID
 	return &upnpav.DIDLLite{Items: items}, nil
 }
 
-func (cd *contentDirectory) BrowseChildren(_ context.Context, parent upnpav.ObjectID) (*upnpav.DIDLLite, error) {
+func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
 	fields := log.Fields{
 		"method": "BrowseChildren",
 		"object": parent,
@@ -141,7 +192,7 @@ func (cd *contentDirectory) BrowseChildren(_ context.Context, parent upnpav.Obje
 
 	didllite := &upnpav.DIDLLite{}
 
-	fs, err := ioutil.ReadDir(p)
+	fs, err := os.ReadDir(p)
 	if err != nil {
 		fields["error"] = err
 		log.WithFields(fields).Error("could not list directory")
@@ -177,26 +228,76 @@ func (cd *contentDirectory) BrowseChildren(_ context.Context, parent upnpav.Obje
 	}
 	didllite.Items = items
 
+	for _, criteria := range sortCriteria {
+		if criteria == "dc:title" {
+			sort.SliceStable(didllite.Items, func(i, j int) bool {
+				return didllite.Items[i].Title < didllite.Items[j].Title
+			})
+		}
+	}
+
 	return didllite, nil
 }
-func (cd *contentDirectory) SearchCapabilities(_ context.Context) ([]string, error) {
+
+func (cd *ContentDirectory) SearchCapabilities(_ context.Context) ([]string, error) {
 	return []string{"dc:title"}, nil
 }
-func (cd *contentDirectory) SortCapabilities(_ context.Context) ([]string, error) {
-	return nil, nil
+func (cd *ContentDirectory) SortCapabilities(_ context.Context) ([]string, error) {
+	return []string{"dc:title"}, nil
 }
-func (cd *contentDirectory) SystemUpdateID(_ context.Context) (uint, error) {
-	return 0, nil
-}
-func (cd *contentDirectory) Search(_ context.Context, _ upnpav.ObjectID, _ search.Criteria) (*upnpav.DIDLLite, error) {
-	return nil, nil
+func (cd *ContentDirectory) SystemUpdateID(_ context.Context) (uint, error) {
+	cd.mu.RLock()
+	defer cd.mu.RUnlock()
+	return cd.systemUpdateID, nil
 }
 
-func (cd *contentDirectory) containerFromPath(p string) (upnpav.Container, error) {
+func (cd *ContentDirectory) IncrementSystemUpdateID() {
+	cd.mu.Lock()
+	defer cd.mu.Unlock()
+	cd.systemUpdateID++
+}
+
+func (cd *ContentDirectory) Search(ctx context.Context, id upnpav.ObjectID, criteria search.Criteria) (*upnpav.DIDLLite, error) {
+	results := &upnpav.DIDLLite{}
+	walkFn := func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		if !media.IsAudioOrVideo(p) {
+			return nil
+		}
+
+		items, err := cd.itemsForPaths(p)
+		if err != nil {
+			return nil
+		}
+		item := items[0]
+		if matches(item, criteria) {
+			results.Items = append(results.Items, item)
+		}
+		return nil
+	}
+
+	p, ok := pathForObjectID(cd.basePath, id)
+	if !ok {
+		return nil, contentdirectory.ErrNoSuchObject
+	}
+
+	if err := filepath.Walk(p, walkFn); err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (cd *ContentDirectory) containerFromPath(p string) (upnpav.Container, error) {
 	container := upnpav.Container{
-		ID:     objectIDForPath(cd.basePath, p),
-		Parent: parentIDForPath(cd.basePath, p),
-		Class:  upnpav.StorageFolder,
+		ID:         objectIDForPath(cd.basePath, p),
+		Parent:     parentIDForPath(cd.basePath, p),
+		Class:      upnpav.StorageFolder,
+		Restricted: true,
 	}
 
 	fi, err := os.Stat(p)
@@ -204,9 +305,9 @@ func (cd *contentDirectory) containerFromPath(p string) (upnpav.Container, error
 		return container, err
 	}
 	container.Title = fi.Name()
-	container.Date = &upnpav.Date{fi.ModTime()}
+	container.Date = &upnpav.Date{Time: fi.ModTime()}
 
-	fs, err := ioutil.ReadDir(p)
+	fs, err := os.ReadDir(p)
 	if err != nil {
 		return container, err
 	}
@@ -215,7 +316,7 @@ func (cd *contentDirectory) containerFromPath(p string) (upnpav.Container, error
 	return container, nil
 }
 
-func (cd *contentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error) {
+func (cd *ContentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error) {
 	coverArts := media.CoverArtForPaths(paths)
 	metadatas := cd.metadataCache.MetadataForPaths(paths)
 
@@ -247,11 +348,13 @@ func (cd *contentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error
 			AlbumArtURIs: albumArtURIs,
 			Resources: []upnpav.Resource{{
 				URI:      cd.uri(p),
-				Duration: &upnpav.Duration{md.Duration},
+				Duration: &upnpav.Duration{Duration: md.Duration},
 				ProtocolInfo: &upnpav.ProtocolInfo{
-					Protocol:      upnpav.ProtocolHTTP,
-					ContentFormat: md.MIMEType,
+					Protocol:       upnpav.ProtocolHTTP,
+					ContentFormat:  md.MIMEType,
+					AdditionalInfo: upnpav.ContentFeatures,
 				},
+				SizeBytes: md.SizeBytes,
 			}},
 		})
 	}
@@ -259,8 +362,8 @@ func (cd *contentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error
 	return items, nil
 }
 
-func (cd *contentDirectory) uri(p string) string {
-	uri := *(cd.baseURL)
+func (cd *ContentDirectory) uri(p string) string {
+	uri := *cd.baseURL
 	relPath, _ := filepath.Rel(cd.basePath, p)
 	uri.Path = path.Join(uri.Path, relPath)
 	// TODO: figure out what's actually going wrong here.

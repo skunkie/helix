@@ -64,7 +64,7 @@ func getObjectJSON(w http.ResponseWriter, r *http.Request) {
 	directory := contentdirectory.NewClient(client)
 
 	ctx := r.Context()
-	self, err := directory.BrowseMetadata(ctx, upnpav.ObjectID(object))
+	self, err := directory.BrowseMetadata(ctx, upnpav.ObjectID(object), nil)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not fetch object metadata: %v", err), http.StatusInternalServerError)
 		return
@@ -76,7 +76,7 @@ func getObjectJSON(w http.ResponseWriter, r *http.Request) {
 	case self.IsSingleContainer():
 		data = directoryObjectFromContainer(udn, self.Containers[0])
 
-		children, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object))
+		children, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object), nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("could not fetch object children: %v", err), http.StatusInternalServerError)
 			return
@@ -158,7 +158,7 @@ func getObjectByType(w http.ResponseWriter, r *http.Request) {
 
 	// find the object.
 	ctx := r.Context()
-	self, err := directory.BrowseMetadata(ctx, upnpav.ObjectID(object))
+	self, err := directory.BrowseMetadata(ctx, upnpav.ObjectID(object), nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -387,7 +387,7 @@ func appendToQueue(w http.ResponseWriter, r *http.Request) {
 	directory := contentdirectory.NewClient(client)
 
 	ctx := r.Context()
-	didllite, err := directory.BrowseMetadata(ctx, upnpav.ObjectID(object))
+	didllite, err := directory.BrowseMetadata(ctx, upnpav.ObjectID(object), nil)
 	if errors.Is(err, contentdirectory.ErrNoSuchObject) {
 		http.NotFound(w, r)
 		return
@@ -404,7 +404,7 @@ func appendToQueue(w http.ResponseWriter, r *http.Request) {
 		httputil.MustWriteJSON(w, []queueItem{data})
 
 	case didllite.IsSingleContainer():
-		didllite, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object))
+		didllite, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object), nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

@@ -11,6 +11,7 @@ import (
 	"github.com/ethulhu/helix/upnp/scpd"
 	"github.com/ethulhu/helix/upnpav"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/search"
+	"github.com/ethulhu/helix/xmltypes"
 )
 
 type (
@@ -22,15 +23,18 @@ type (
 		SortCapabilities(context.Context) ([]string, error)
 
 		// BrowseMetadata shows information about a given object.
-		BrowseMetadata(context.Context, upnpav.ObjectID) (*upnpav.DIDLLite, error)
+		BrowseMetadata(context.Context, upnpav.ObjectID, xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error)
 
 		// BrowseChildren lists the child objects of a given object.
-		BrowseChildren(context.Context, upnpav.ObjectID) (*upnpav.DIDLLite, error)
+		BrowseChildren(context.Context, upnpav.ObjectID, xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error)
 
 		// Search queries the ContentDirectory service for objects under a given object that match a given criteria.
 		Search(context.Context, upnpav.ObjectID, search.Criteria) (*upnpav.DIDLLite, error)
 
 		SystemUpdateID(ctx context.Context) (uint, error)
+
+		// XGetFeatureList returns the feature list of the ContentDirectory service.
+		XGetFeatureList(context.Context) ([]string, error)
 	}
 )
 
@@ -74,4 +78,5 @@ var SCPD = scpd.Must(scpd.Merge(
 	scpd.Must(scpd.FromAction(getSortCapabilities, getSortCapabilitiesRequest{}, getSortCapabilitiesResponse{})),
 	scpd.Must(scpd.FromAction(searchA, searchRequest{}, searchResponse{})),
 	scpd.Must(scpd.FromAction(getSystemUpdateID, getSystemUpdateIDRequest{}, getSystemUpdateIDResponse{})),
+	scpd.Must(scpd.FromAction(xGetFeatureList, xGetFeatureListRequest{}, xGetFeatureListResponse{})),
 ))

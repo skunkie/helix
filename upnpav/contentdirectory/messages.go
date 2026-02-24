@@ -16,7 +16,8 @@ type (
 		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 GetSearchCapabilities"`
 	}
 	getSearchCapabilitiesResponse struct {
-		XMLName      xml.Name                       `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 GetSearchCapabilitiesResponse"`
+		XMLName      xml.Name
+		Xmlns        []xml.Attr                     `xml:",attr,omitempty"`
 		Capabilities xmltypes.CommaSeparatedStrings `xml:"SearchCaps" scpd:"SearchCapabilities,string"`
 	}
 
@@ -24,7 +25,8 @@ type (
 		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 GetSortCapabilities"`
 	}
 	getSortCapabilitiesResponse struct {
-		XMLName      xml.Name                       `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 GetSortCapabilitiesResponse"`
+		XMLName      xml.Name
+		Xmlns        []xml.Attr                     `xml:",attr,omitempty"`
 		Capabilities xmltypes.CommaSeparatedStrings `xml:"SortCaps" scpd:"SortCapabilities,string"`
 	}
 
@@ -32,8 +34,9 @@ type (
 		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 GetSystemUpdateID"`
 	}
 	getSystemUpdateIDResponse struct {
-		XMLName        xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 GetSystemUpdateIDResponse"`
-		SystemUpdateID uint     `xml:"Id" scpd:"SystemUpdateID,ui4"`
+		XMLName        xml.Name
+		Xmlns          []xml.Attr `xml:",attr,omitempty"`
+		SystemUpdateID uint       `xml:"Id" scpd:"SystemUpdateID,ui4"`
 	}
 
 	browseFlag    string
@@ -64,7 +67,8 @@ type (
 		SortCriteria xmltypes.CommaSeparatedStrings `xml:"SortCriteria" scpd:"A_ARG_TYPE_SortCriteria,string"`
 	}
 	browseResponse struct {
-		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 BrowseResponse"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr `xml:",attr,omitempty"`
 
 		Result upnpav.EncodedDIDLLite `xml:"Result" scpd:"A_ARG_TYPE_Result,string"`
 
@@ -89,22 +93,24 @@ type (
 		SortCriteria   xmltypes.CommaSeparatedStrings `xml:"SortCriteria"   scpd:"A_ARG_TYPE_SortCriteria,string"`
 	}
 	searchResponse struct {
-		XMLName        xml.Name               `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 SearchResponse"`
+		XMLName        xml.Name
+		Xmlns          []xml.Attr             `xml:",attr,omitempty"`
 		Result         upnpav.EncodedDIDLLite `xml:"Result" scpd:"A_ARG_TYPE_Result,string"`
 		NumberReturned uint                   `xml:"NumberReturned" scpd:"A_ARG_TYPE_Count,ui4"`
-		TotalMatches   uint                   `xml:"TotalMatches"   scpd:"A_ARG_TYPE_Count,ui4"`
-		UpdateID       uint                   `xml:"UpdateID"       scpd:"A_ARG_TYPE_UpdateID,ui4"`
+		TotalMatches   uint                   `xml:"TotalMatches" scpd:"A_ARG_TYPE_Count,ui4"`
+		UpdateID       uint                   `xml:"UpdateID" scpd:"A_ARG_TYPE_UpdateID,ui4"`
 	}
 
 	createObjectRequest struct {
 		XMLName   xml.Name        `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 CreateObject"`
 		Container upnpav.ObjectID `xml:"ContainerID" scpd:"A_ARG_TYPE_ObjectID,string"`
-		Elements  string          `xml:"Elements"    scpd:"A_ARG_TYPE_Result,string"`
+		Elements  string          `xml:"Elements" scpd:"A_ARG_TYPE_Result,string"`
 	}
 	createObjectResponse struct {
-		XMLName xml.Name        `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 CreateObjectResponse"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr      `xml:",attr,omitempty"`
 		Object  upnpav.ObjectID `xml:"ObjectID" scpd:"A_ARG_TYPE_ObjectID,string"`
-		Result  string          `xml:"Result"   scpd:"A_ARG_TYPE_Result,string"`
+		Result  string          `xml:"Result" scpd:"A_ARG_TYPE_Result,string"`
 	}
 
 	destroyObjectRequest struct {
@@ -112,37 +118,41 @@ type (
 		Object  upnpav.ObjectID `xml:"ObjectID" scpd:"A_ARG_TYPE_ObjectID,string"`
 	}
 	destroyObjectResponse struct {
-		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 DestroyObjectResponse"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr `xml:",attr,omitempty"`
 	}
 
 	updateObjectRequest struct {
 		XMLName         xml.Name                       `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 UpdateObject"`
-		Object          upnpav.ObjectID                `xml:"ObjectID"        scpd:"A_ARG_TYPE_ObjectID,string"`
+		Object          upnpav.ObjectID                `xml:"ObjectID" scpd:"A_ARG_TYPE_ObjectID,string"`
 		CurrentTagValue xmltypes.CommaSeparatedStrings `xml:"CurrentTagValue" scpd:"A_ARG_TYPE_TagValueList,string"`
-		NewTagValue     xmltypes.CommaSeparatedStrings `xml:"NewTagValue"     scpd:"A_ARG_TYPE_TagValueList,string"`
+		NewTagValue     xmltypes.CommaSeparatedStrings `xml:"NewTagValue" scpd:"A_ARG_TYPE_TagValueList,string"`
 	}
 	updateObjectResponse struct {
-		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 UpdateObjectResponse"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr `xml:",attr,omitempty"`
 	}
 
 	importResourceRequest struct {
 		XMLName        xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 ImportResource"`
-		SourceURI      string   `xml:"SourceURI"      scpd:"A_ARG_TYPE_URI,uri"`
+		SourceURI      string   `xml:"SourceURI" scpd:"A_ARG_TYPE_URI,uri"`
 		DestinationURI string   `xml:"DestinationURI" scpd:"A_ARG_TYPE_URI,uri"`
 	}
 	importResourceResponse struct {
-		XMLName    xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 ImportResourceResponse"`
-		TransferID uint     `xml:"TransferID" scpd:"A_ARG_TYPE_TransferID,ui4"`
+		XMLName    xml.Name
+		Xmlns      []xml.Attr `xml:",attr,omitempty"`
+		TransferID uint       `xml:"TransferID" scpd:"A_ARG_TYPE_TransferID,ui4"`
 	}
 
 	exportResourceRequest struct {
 		XMLName        xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 ExportResource"`
-		SourceURI      string   `xml:"SourceURI"      scpd:"A_ARG_TYPE_URI,uri"`
+		SourceURI      string   `xml:"SourceURI" scpd:"A_ARG_TYPE_URI,uri"`
 		DestinationURI string   `xml:"DestinationURI" scpd:"A_ARG_TYPE_URI,uri"`
 	}
 	exportResourceResponse struct {
-		XMLName    xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 ExportResourceResponse"`
-		TransferID uint     `xml:"TransferID" scpd:"A_ARG_TYPE_TransferID,ui4"`
+		XMLName    xml.Name
+		Xmlns      []xml.Attr `xml:",attr,omitempty"`
+		TransferID uint       `xml:"TransferID" scpd:"A_ARG_TYPE_TransferID,ui4"`
 	}
 
 	stopTransferResourceRequest struct {
@@ -150,7 +160,8 @@ type (
 		TransferID uint     `xml:"TransferID" scpd:"A_ARG_TYPE_TransferID,ui4"`
 	}
 	stopTransferResourceResponse struct {
-		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 StopTransferResourceResponse"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr `xml:",attr,omitempty"`
 	}
 
 	getTransferProgressRequest struct {
@@ -158,10 +169,11 @@ type (
 		TransferID uint     `xml:"TransferID" scpd:"A_ARG_TYPE_TransferID,ui4"`
 	}
 	getTransferProgressResponse struct {
-		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 GetTransferProgressResponse"`
-		Status  string   `xml:"TransferStatus" scpd:"A_ARG_TYPE_TransferStatus,string"`
-		Length  string   `xml:"TransferLength" scpd:"A_ARG_TYPE_TransferLength,string"`
-		Total   string   `xml:"TransferTotal"  scpd:"A_ARG_TYPE_TransferTotal,string"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr `xml:",attr,omitempty"`
+		Status  string     `xml:"TransferStatus" scpd:"A_ARG_TYPE_TransferStatus,string"`
+		Length  string     `xml:"TransferLength" scpd:"A_ARG_TYPE_TransferLength,string"`
+		Total   string     `xml:"TransferTotal" scpd:"A_ARG_TYPE_TransferTotal,string"`
 	}
 
 	deleteResourceRequest struct {
@@ -169,17 +181,28 @@ type (
 		URI     string   `xml:"ResourceURI" scpd:"A_ARG_TYPE_URI,uri"`
 	}
 	deleteResourceResponse struct {
-		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 DeleteResourceResponse"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr `xml:",attr,omitempty"`
 	}
 
 	createReferenceRequest struct {
 		XMLName   xml.Name        `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 CreateReference"`
-		Object    upnpav.ObjectID `xml:"ObjectID"    scpd:"A_ARG_TYPE_ObjectID,string"`
+		Object    upnpav.ObjectID `xml:"ObjectID" scpd:"A_ARG_TYPE_ObjectID,string"`
 		Container upnpav.ObjectID `xml:"ContainerID" scpd:"A_ARG_TYPE_ObjectID,string"`
 	}
 	createReferenceResponse struct {
-		XMLName xml.Name        `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 CreateReferenceResponse"`
+		XMLName xml.Name
+		Xmlns   []xml.Attr      `xml:",attr,omitempty"`
 		Object  upnpav.ObjectID `xml:"NewID" scpd:"A_ARG_TYPE_ObjectID,string"`
+	}
+
+	xGetFeatureListRequest struct {
+		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:ContentDirectory:1 X_GetFeatureList"`
+	}
+	xGetFeatureListResponse struct {
+		XMLName     xml.Name
+		Xmlns       []xml.Attr                     `xml:",attr,omitempty"`
+		FeatureList xmltypes.CommaSeparatedStrings `xml:"FeatureList" scpd:"A_ARG_TYPE_Featurelist,string"`
 	}
 )
 
@@ -192,6 +215,7 @@ const (
 	getSearchCapabilities = "GetSearchCapabilities"
 	getSortCapabilities   = "GetSortCapabilities"
 	getSystemUpdateID     = "GetSystemUpdateID" // TODO: figure out how this works.
+	xGetFeatureList       = "X_GetFeatureList"
 
 	browse  = "Browse"
 	searchA = "Search"

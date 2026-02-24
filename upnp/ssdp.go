@@ -8,7 +8,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
@@ -76,7 +76,7 @@ func DiscoverDevices(ctx context.Context, urn URN, iface *net.Interface) ([]*Dev
 			errs = append(errs, fmt.Errorf("could not GET manifest %v: %w", manifestURL, err))
 			continue
 		}
-		bytes, _ := ioutil.ReadAll(rsp.Body)
+		bytes, _ := io.ReadAll(rsp.Body)
 
 		manifest := ssdp.Document{}
 		if err := xml.Unmarshal(bytes, &manifest); err != nil {

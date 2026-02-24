@@ -17,10 +17,11 @@ import (
 
 type (
 	Metadata struct {
-		Duration time.Duration
-		MIMEType string
-		Tags     map[string]string
-		Title    string
+		Duration  time.Duration
+		MIMEType  string
+		Tags      map[string]string
+		Title     string
+		SizeBytes uint
 	}
 
 	ffprobeOutput struct {
@@ -50,9 +51,14 @@ func MetadataForPath(p string) (*Metadata, error) {
 		Title:    strings.TrimSuffix(path.Base(p), path.Ext(p)),
 	}
 
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		// ffprobe is not installed, so we can't get any more metadata.
+		return md, nil
+	}
+
 	bytes, err := exec.Command("ffprobe", append(ffprobeArgs, p)...).Output()
 	if err != nil {
-		return md, fmt.Errorf("could not run ffprobe: %w", err)
+		return nil, fmt.Errorf("could not run ffprobe: %w", err)
 	}
 
 	var ffprobe ffprobeOutput

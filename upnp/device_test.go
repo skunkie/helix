@@ -22,6 +22,8 @@ func TestDeviceManifest(t *testing.T) {
 			urns: []URN{"hello"},
 			ids:  []ServiceID{"goodbye"},
 			want: ssdp.Document{
+				NSDLNA:      "urn:schemas-dlna-org:device-1-0",
+				NSSEC:       "http://www.sec.co.kr/dlna",
 				SpecVersion: ssdp.Version,
 				Device: ssdp.Device{
 					FriendlyName:     "name",

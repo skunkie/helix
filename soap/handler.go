@@ -5,9 +5,10 @@
 package soap
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -36,7 +37,7 @@ func Handle(w http.ResponseWriter, r *http.Request, handler Interface) {
 	log.AddField("soap.namespace", namespace)
 	log.AddField("soap.action", action)
 
-	envelope, err := ioutil.ReadAll(r.Body)
+	envelope, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.WithError(err).Warning("could not read body of SOAP request")
@@ -60,11 +61,12 @@ func Handle(w http.ResponseWriter, r *http.Request, handler Interface) {
 	}
 
 	envelope = serializeSOAPEnvelope(out, err)
-	w.Write(envelope)
+	envelope = bytes.ReplaceAll(envelope, []byte("&#34;"), []byte(`"`))
+	_, _ = w.Write(envelope)
 
 	if err != nil {
 		log.WithError(err).Warning("served SOAP error")
 		return
 	}
-	log.Info("served SOAP request")
+	log.Debug("served SOAP request")
 }
