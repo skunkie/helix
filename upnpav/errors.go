@@ -41,7 +41,7 @@ func (e Error) Error() string {
 	return fmt.Sprintf("%s (%d)", e.Description, e.Code)
 }
 func (e Error) FaultCode() soap.FaultCode {
-	if e.Code == 501 {
+	if e.Code >= 500 && e.Code < 600 {
 		return soap.FaultServer
 	}
 	return soap.FaultClient

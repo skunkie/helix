@@ -12,13 +12,17 @@ import (
 
 	"github.com/ethulhu/helix/upnpav"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/search"
+	"github.com/ethulhu/helix/xmltypes"
 )
 
 func TestClientAndHandler(t *testing.T) {
+	ctx := context.Background()
+
 	fh := fakeHandler{
 		searchCapabilities: []string{"foo", "bar"},
 		sortCapabilities:   []string{"mew", "purr"},
 		systemUpdateID:     3,
+		xGetFeatureList:    []string{"foo", "bar"},
 
 		browseMetadataObject: upnpav.ObjectID("twelve"),
 		browseMetadataDIDLLite: &upnpav.DIDLLite{
@@ -45,7 +49,7 @@ func TestClientAndHandler(t *testing.T) {
 
 	client := NewClient(SOAPHandler{&fh})
 
-	searchCapabilities, err := client.SearchCapabilities(nil)
+	searchCapabilities, err := client.SearchCapabilities(ctx)
 	if err != nil {
 		t.Fatalf("SearchCapabilities(_) returned error: %v", err)
 	}
@@ -53,7 +57,7 @@ func TestClientAndHandler(t *testing.T) {
 		t.Fatalf("SearchCapabilities(_) == %v, want %v", searchCapabilities, fh.searchCapabilities)
 	}
 
-	sortCapabilities, err := client.SortCapabilities(nil)
+	sortCapabilities, err := client.SortCapabilities(ctx)
 	if err != nil {
 		t.Fatalf("SortCapabilities(_) returned error: %v", err)
 	}
@@ -61,7 +65,7 @@ func TestClientAndHandler(t *testing.T) {
 		t.Fatalf("SortCapabilities(_) == %v, want %v", sortCapabilities, fh.sortCapabilities)
 	}
 
-	systemUpdateID, err := client.SystemUpdateID(nil)
+	systemUpdateID, err := client.SystemUpdateID(ctx)
 	if err != nil {
 		t.Fatalf("SystemUpdate(_) returned error: %v", err)
 	}
@@ -69,7 +73,7 @@ func TestClientAndHandler(t *testing.T) {
 		t.Fatalf("SystemUpdate(_) == %v, want %v", systemUpdateID, fh.systemUpdateID)
 	}
 
-	browseMetadataDIDLLite, err := client.BrowseMetadata(nil, fh.browseMetadataObject)
+	browseMetadataDIDLLite, err := client.BrowseMetadata(ctx, fh.browseMetadataObject, nil)
 	if err != nil {
 		t.Fatalf("BrowseMetadata(_, %q) returned error: %v", fh.browseMetadataObject, err)
 	}
@@ -77,7 +81,7 @@ func TestClientAndHandler(t *testing.T) {
 		t.Fatalf("BrowseMetadata(_, %q) == %v, want %v", fh.browseMetadataObject, browseMetadataDIDLLite, fh.browseMetadataDIDLLite)
 	}
 
-	browseChildrenDIDLLite, err := client.BrowseChildren(nil, fh.browseChildrenObject)
+	browseChildrenDIDLLite, err := client.BrowseChildren(ctx, fh.browseChildrenObject, nil)
 	if err != nil {
 		t.Fatalf("BrowseChildren(_, %q) returned error: %v", fh.browseChildrenObject, err)
 	}
@@ -85,7 +89,7 @@ func TestClientAndHandler(t *testing.T) {
 		t.Fatalf("BrowseChildren(_, %q) == %v, want %v", fh.browseChildrenObject, browseChildrenDIDLLite, fh.browseChildrenDIDLLite)
 	}
 
-	searchDIDLLite, err := client.Search(nil, fh.searchObject, fh.searchCriteria)
+	searchDIDLLite, err := client.Search(ctx, fh.searchObject, fh.searchCriteria)
 	if err != nil {
 		t.Fatalf("Search(_, %q, %q) returned error: %v", fh.searchObject, fh.searchCriteria, err)
 	}
@@ -99,6 +103,7 @@ type fakeHandler struct {
 	searchCapabilities []string
 	sortCapabilities   []string
 	systemUpdateID     uint
+	xGetFeatureList    []string
 
 	browseMetadataObject   upnpav.ObjectID
 	browseMetadataDIDLLite *upnpav.DIDLLite
@@ -120,13 +125,17 @@ func (f *fakeHandler) SortCapabilities(_ context.Context) ([]string, error) {
 func (f *fakeHandler) SystemUpdateID(_ context.Context) (uint, error) {
 	return f.systemUpdateID, nil
 }
-func (f *fakeHandler) BrowseMetadata(_ context.Context, id upnpav.ObjectID) (*upnpav.DIDLLite, error) {
+func (f *fakeHandler) XGetFeatureList(_ context.Context) ([]string, error) {
+	return f.xGetFeatureList, nil
+}
+
+func (f *fakeHandler) BrowseMetadata(_ context.Context, id upnpav.ObjectID, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
 	if id != f.browseMetadataObject {
 		return nil, fmt.Errorf("id == %v", id)
 	}
 	return f.browseMetadataDIDLLite, nil
 }
-func (f *fakeHandler) BrowseChildren(_ context.Context, id upnpav.ObjectID) (*upnpav.DIDLLite, error) {
+func (f *fakeHandler) BrowseChildren(_ context.Context, id upnpav.ObjectID, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
 	if id != f.browseChildrenObject {
 		return nil, fmt.Errorf("id == %v", id)
 	}

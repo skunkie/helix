@@ -17,6 +17,8 @@ func TestMarshal(t *testing.T) {
 	}{
 		{
 			manifest: Document{
+				NSDLNA:      "urn:schemas-dlna-org:device-1-0",
+				NSSEC:       "http://www.sec.co.kr/dlna",
 				SpecVersion: SpecVersion{
 					Major: 1,
 					Minor: 2,
@@ -26,7 +28,7 @@ func TestMarshal(t *testing.T) {
 					FriendlyName: "Foo (bar)",
 				},
 			},
-			want: `<root xmlns="urn:schemas-upnp-org:device-1-0">
+			want: `<root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:dlna="urn:schemas-dlna-org:device-1-0" xmlns:sec="http://www.sec.co.kr/dlna">
   <specVersion>
     <major>1</major>
     <minor>2</minor>

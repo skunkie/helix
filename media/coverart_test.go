@@ -103,7 +103,7 @@ func (fs fakeFS) Stat(p string) (os.FileInfo, error) {
 	}
 	return nil, os.ErrNotExist
 }
-func (fs fakeFS) List(p string) ([]os.FileInfo, error) {
+func (fs fakeFS) List(p string) ([]os.DirEntry, error) {
 	p = path.Clean(p)
 	isDir, ok := fs[p]
 	if !ok {
@@ -113,16 +113,16 @@ func (fs fakeFS) List(p string) ([]os.FileInfo, error) {
 		return nil, os.ErrInvalid
 	}
 
-	var fileInfos []os.FileInfo
+	var entries []os.DirEntry
 	for f, isDir := range fs {
 		if p == path.Dir(f) {
-			fileInfos = append(fileInfos, fakeFileInfo{name: path.Base(f), isDir: isDir})
+			entries = append(entries, fakeDirEntry{entryName: path.Base(f), entryIsDir: isDir})
 		}
 	}
-	sort.Slice(fileInfos, func(i, j int) bool {
-		return fileInfos[i].Name() < fileInfos[j].Name()
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
 	})
-	return fileInfos, nil
+	return entries, nil
 }
 
 type fakeFileInfo struct {
@@ -136,4 +136,28 @@ func (ffi fakeFileInfo) IsDir() bool {
 }
 func (ffi fakeFileInfo) Name() string {
 	return ffi.name
+}
+
+type fakeDirEntry struct {
+	entryName string
+	entryIsDir bool
+}
+
+func (e fakeDirEntry) Name() string {
+	return e.entryName
+}
+
+func (e fakeDirEntry) IsDir() bool {
+	return e.entryIsDir
+}
+
+func (e fakeDirEntry) Type() os.FileMode {
+	if e.entryIsDir {
+		return os.ModeDir
+	}
+	return 0
+}
+
+func (e fakeDirEntry) Info() (os.FileInfo, error) {
+	return fakeFileInfo{name: e.entryName, isDir: e.entryIsDir}, nil
 }

@@ -26,5 +26,12 @@ const (
 )
 
 var SCPD = scpd.Must(scpd.Merge(
-	scpd.Must(scpd.FromAction(getProtocolInfo, getProtocolInfoRequest{}, getProtocolInfoResponse{})),
+	scpd.Must(scpd.FromAction(getProtocolInfo, getProtocolInfoRequest{}, getProtocolInfoResponse{
+		Sources: func() commaSeparatedProtocolInfos {
+			var infos commaSeparatedProtocolInfos
+			_ = infos.UnmarshalText([]byte(upnpav.DefaultProtocolInfo))
+			return infos
+		}(),
+		Sinks: nil,
+	})),
 ))

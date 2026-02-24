@@ -65,7 +65,7 @@ func (c *client) Stop(ctx context.Context) error {
 func (c *client) Seek(ctx context.Context, d time.Duration) error {
 	req := seekRequest{
 		Unit:   SeekRelativeTime,
-		Target: upnpav.Duration{d}.String(),
+		Target: upnpav.Duration{Duration: d}.String(),
 	}
 	return c.call(ctx, seek, req, nil)
 }
@@ -109,7 +109,7 @@ func (c *client) SetCurrentURI(ctx context.Context, uri string, metadata *upnpav
 	req := setAVTransportURIRequest{
 		InstanceID:      0,
 		CurrentURI:      uri,
-		CurrentMetadata: upnpav.EncodedDIDLLite{*metadata},
+		CurrentMetadata: upnpav.EncodedDIDLLite{DIDLLite: *metadata},
 	}
 	return c.call(ctx, setAVTransportURI, req, nil)
 }
@@ -124,7 +124,7 @@ func (c *client) SetNextURI(ctx context.Context, uri string, metadata *upnpav.DI
 	req := setNextAVTransportURIRequest{
 		InstanceID:   0,
 		NextURI:      uri,
-		NextMetadata: upnpav.EncodedDIDLLite{*metadata},
+		NextMetadata: upnpav.EncodedDIDLLite{DIDLLite: *metadata},
 	}
 	return c.call(ctx, setNextAVTransportURI, req, nil)
 }

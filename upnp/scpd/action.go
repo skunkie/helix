@@ -68,9 +68,7 @@ func argumentsAndVariables(obj interface{}, d Direction) ([]Argument, []StateVar
 
 		if parts[1] == "string" && len(parts) == 3 {
 			sv.AllowedValues = &AllowedValues{}
-			for _, allowed := range strings.Split(parts[2], "|") {
-				sv.AllowedValues.Values = append(sv.AllowedValues.Values, allowed)
-			}
+			sv.AllowedValues.Values = append(sv.AllowedValues.Values, strings.Split(parts[2], "|")...)
 		}
 		if (parts[1] == "i4" || parts[1] == "ui4") && len(parts) > 2 {
 			sv.AllowedValueRange = &AllowedValueRange{}

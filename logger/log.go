@@ -50,6 +50,15 @@ const (
 	loggerKey contextKey = iota
 )
 
+func SetLevel(level string) error {
+	lvl, err := log.ParseLevel(level)
+	if err != nil {
+		return fmt.Errorf("could not parse log level: %w", err)
+	}
+	log.SetLevel(lvl)
+	return nil
+}
+
 func FromContext(ctx context.Context) (Logger, context.Context) {
 	maybeLogger := ctx.Value(loggerKey)
 

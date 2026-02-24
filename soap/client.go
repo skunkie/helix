@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 )
@@ -43,7 +43,7 @@ func (c *client) Call(ctx context.Context, namespace, action string, input []byt
 		return nil, fmt.Errorf("could not do HTTP request: %w", err)
 	}
 
-	data, _ := ioutil.ReadAll(rsp.Body)
+	data, _ := io.ReadAll(rsp.Body)
 
 	// prioritize SOAP errors over regular HTTP errors.
 	out, err := deserializeSOAPEnvelope(data)

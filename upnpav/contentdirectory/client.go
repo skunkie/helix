@@ -60,18 +60,27 @@ func (c *client) SystemUpdateID(ctx context.Context) (uint, error) {
 	}
 	return rsp.SystemUpdateID, nil
 }
+func (c *client) XGetFeatureList(ctx context.Context) ([]string, error) {
+	req := xGetFeatureListRequest{}
+	rsp := xGetFeatureListResponse{}
+	if err := c.call(ctx, xGetFeatureList, req, &rsp); err != nil {
+		return nil, err
+	}
+	return rsp.FeatureList, nil
+}
 
-func (c *client) BrowseMetadata(ctx context.Context, object upnpav.ObjectID) (*upnpav.DIDLLite, error) {
-	return c.browse(ctx, browseMetadata, object)
+func (c *client) BrowseMetadata(ctx context.Context, object upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
+	return c.browse(ctx, browseMetadata, object, sortCriteria)
 }
-func (c *client) BrowseChildren(ctx context.Context, object upnpav.ObjectID) (*upnpav.DIDLLite, error) {
-	return c.browse(ctx, browseChildren, object)
+func (c *client) BrowseChildren(ctx context.Context, object upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
+	return c.browse(ctx, browseChildren, object, sortCriteria)
 }
-func (c *client) browse(ctx context.Context, bf browseFlag, object upnpav.ObjectID) (*upnpav.DIDLLite, error) {
+func (c *client) browse(ctx context.Context, bf browseFlag, object upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
 	req := browseRequest{
-		Object:     object,
-		BrowseFlag: bf,
-		Filter:     xmltypes.CommaSeparatedStrings{"*"},
+		Object:       object,
+		BrowseFlag:   bf,
+		Filter:       xmltypes.CommaSeparatedStrings{"*"},
+		SortCriteria: sortCriteria,
 	}
 
 	rsp := browseResponse{}

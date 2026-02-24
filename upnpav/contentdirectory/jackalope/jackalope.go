@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/ethulhu/helix/upnpav"
 	"github.com/ethulhu/helix/upnpav/contentdirectory"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/search"
+	"github.com/ethulhu/helix/xmltypes"
 	"go.eth.moe/jackalope"
 	"go.eth.moe/jackalope/query"
 )
@@ -68,7 +70,7 @@ func NewContentDirectory(basePath, baseURL string, metadataCache media.MetadataC
 	}, nil
 }
 
-func (cd *contentDirectory) BrowseMetadata(ctx context.Context, id upnpav.ObjectID) (*upnpav.DIDLLite, error) {
+func (cd *contentDirectory) BrowseMetadata(ctx context.Context, id upnpav.ObjectID, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
 	log, ctx := logger.FromContext(ctx)
 	log.AddField("jackalope.method", "BrowseMetadata")
 	log.AddField("object", id)
@@ -126,7 +128,7 @@ func (cd *contentDirectory) BrowseMetadata(ctx context.Context, id upnpav.Object
 	return &upnpav.DIDLLite{Items: items}, nil
 }
 
-func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.ObjectID) (*upnpav.DIDLLite, error) {
+func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
 	log, ctx := logger.FromContext(ctx)
 	log.AddField("jackalope.method", "BrowseChildren")
 	log.AddField("object", id)
@@ -137,7 +139,43 @@ func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.Object
 			log.WithError(err).Error("could not list tags from Jackalope")
 			return nil, upnpav.ErrActionFailed
 		}
-		return &upnpav.DIDLLite{Containers: containers}, nil
+		if len(containers) > 0 {
+			return &upnpav.DIDLLite{Containers: containers}, nil
+		}
+
+		rawPaths, err := cd.jackalope.Query("*")
+		if err != nil {
+			log.WithError(err).Error("could not query jackalope")
+			return nil, upnpav.ErrActionFailed
+		}
+
+		var paths []string
+		for _, p := range rawPaths {
+			if !media.IsAudioOrVideo(p) {
+				continue
+			}
+			if fi, err := os.Stat(p); err != nil || fi.IsDir() {
+				continue
+			}
+			paths = append(paths, p)
+		}
+
+		items, err := cd.itemsForPaths(paths...)
+		if err != nil {
+			log.WithError(err).Warning("could not describe items from path")
+			return nil, upnpav.ErrActionFailed
+		}
+
+		didllite := &upnpav.DIDLLite{Items: items}
+
+		for _, criteria := range sortCriteria {
+			if criteria == "dc:title" {
+				sort.SliceStable(didllite.Items, func(i, j int) bool {
+					return didllite.Items[i].Title < didllite.Items[j].Title
+				})
+			}
+		}
+		return didllite, nil
 	}
 
 	query, ok := queryForObjectID(id)
@@ -175,19 +213,33 @@ func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.Object
 		return nil, upnpav.ErrActionFailed
 	}
 
-	return &upnpav.DIDLLite{Containers: containers, Items: items}, nil
+	didllite := &upnpav.DIDLLite{Containers: containers, Items: items}
+
+	for _, criteria := range sortCriteria {
+		if criteria == "dc:title" {
+			sort.SliceStable(didllite.Items, func(i, j int) bool {
+				return didllite.Items[i].Title < didllite.Items[j].Title
+				})
+		}
+	}
+
+	return didllite, nil
 }
 
 func (cd *contentDirectory) SearchCapabilities(_ context.Context) ([]string, error) {
 	return nil, nil
 }
 func (cd *contentDirectory) SortCapabilities(_ context.Context) ([]string, error) {
-	return nil, nil
+	return []string{"dc:title"}, nil
 }
 func (cd *contentDirectory) SystemUpdateID(_ context.Context) (uint, error) {
 	return 0, nil
 }
 func (cd *contentDirectory) Search(_ context.Context, _ upnpav.ObjectID, _ search.Criteria) (*upnpav.DIDLLite, error) {
+	return nil, nil
+}
+func (cd *contentDirectory) XGetFeatureList(_ context.Context) ([]string, error) {
+	// TODO: figure out what this should do.
 	return nil, nil
 }
 
@@ -280,7 +332,7 @@ func (cd *contentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error
 			AlbumArtURIs: albumArtURIs,
 			Resources: []upnpav.Resource{{
 				URI:      cd.uri(p),
-				Duration: &upnpav.Duration{md.Duration},
+				Duration: &upnpav.Duration{Duration: md.Duration},
 				ProtocolInfo: &upnpav.ProtocolInfo{
 					Protocol:      upnpav.ProtocolHTTP,
 					ContentFormat: md.MIMEType,
