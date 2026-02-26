@@ -30,19 +30,38 @@ import (
 )
 
 var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
+var (
 	udn            = flag.Custom("udn", "", "UDN to broadcast (if unset, will generate one)", flags.UDN)
 	friendlyName   = flag.Custom("friendly-name", "", "human-readable name to broadcast (if unset, will generate one)", flags.FriendlyName)
 	iface          = flag.Custom("interface", "", "interface to listen on (will try to find a Private IPv4 if unset)", flags.NetInterface)
 	notifyInterval = flag.Duration("notify-interval", time.Duration(30*time.Second), "interval between SSDP advertisements")
 	port           = flag.Int("port", 8080, "port to listen on")
 
-	logLevel = flag.String("log-level", "info", "log level (debug, info, warning, error)")
-	basePath = flag.Custom("path", "", "path to serve", flag.RequiredString)
-
+	logLevel             = flag.String("log-level", "info", "log level (debug, info, warning, error)")
+	basePath             = flag.Custom("path", "", "path to serve", flag.RequiredString)
 	disableMetadataCache = flag.Bool("disable-metadata-cache", false, "disable the metadata cache")
+	_                    = flag.Bool("version", false, "show version and exit")
 )
 
 func main() {
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "helix %s (commit %s, built at %s)\n\n", version, commit, date)
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		flag.CommandLine.PrintDefaults()
+	}
+
+	for _, arg := range os.Args[1:] {
+		if arg == "-version" || arg == "--version" {
+			fmt.Printf("helix %s (commit %s, built at %s)\n", version, commit, date)
+			os.Exit(0)
+		}
+	}
+
 	flag.Parse()
 
 	basePath := (*basePath).(string)
@@ -56,6 +75,8 @@ func main() {
 	if err := logger.SetLevel(*logLevel); err != nil {
 		log.WithError(err).Fatal("could not set log level")
 	}
+
+	log.WithField("version", version).WithField("commit", commit).WithField("date", date).Info("starting helix")
 
 	ip, err := netutil.SuitableIP(iface)
 	if err != nil {
