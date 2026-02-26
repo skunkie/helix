@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2020 Ethel Morgan
+#
+# SPDX-License-Identifier: MIT
+
+# Dockerfile.build for building helix binaries
+FROM golang:1.24-alpine
+
+RUN apk add --no-cache git
+
+WORKDIR /app
+
+ARG VERSION
+ARG COMMIT
+ARG DATE
+
+ENV VERSION=${VERSION}
+ENV COMMIT=${COMMIT}
+ENV DATE=${DATE}
+
+CMD ["./entrypoint.sh"]
