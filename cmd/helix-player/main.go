@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: MIT
 
-//go:generate go run github.com/rakyll/statik -src=static
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -20,10 +21,10 @@ import (
 	"github.com/ethulhu/helix/upnpav/contentdirectory"
 	"github.com/ethulhu/helix/upnpav/controlpoint"
 	"github.com/gorilla/mux"
-	"github.com/rakyll/statik/fs"
-
-	_ "github.com/ethulhu/helix/cmd/helix-player/statik"
 )
+
+//go:embed static
+var staticFS embed.FS
 
 var (
 	port   = flag.Uint("port", 0, "port to listen on")
@@ -253,13 +254,13 @@ func main() {
 			Methods("GET").
 			Handler(http.FileServer(httputil.TryFiles{http.Dir(*debugAssetsPath)}))
 	} else {
-		statikFS, err := fs.New()
+		fs, err := fs.Sub(staticFS, "static")
 		if err != nil {
 			panic(err)
 		}
 		m.PathPrefix("/").
 			Methods("GET").
-			Handler(http.FileServer(httputil.TryFiles{statikFS}))
+			Handler(http.FileServer(httputil.TryFiles{http.FS(fs)}))
 	}
 
 	m.Use(httputil.Log)
