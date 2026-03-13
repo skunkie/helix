@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -41,7 +42,7 @@ var (
 	directories *upnp.DeviceCache
 	transports  *upnp.DeviceCache
 
-	controlLoop = controlpoint.NewLoop()
+	controlLoop *controlpoint.Loop
 	trackList   = controlpoint.NewTrackList()
 )
 
@@ -74,13 +75,17 @@ func main() {
 	}
 	defer conn.Close()
 
+	ctx := context.Background()
+
+	controlLoop = controlpoint.NewLoop(ctx)
+
 	deviceCacheOptions := upnp.DeviceCacheOptions{
 		InitialRefresh: *initialRefresh,
 		StableRefresh:  *stableRefresh,
 		Interface:      iface,
 	}
-	directories = upnp.NewDeviceCache(contentdirectory.Version1, deviceCacheOptions)
-	transports = upnp.NewDeviceCache(avtransport.Version1, deviceCacheOptions)
+	directories = upnp.NewDeviceCache(ctx, contentdirectory.Version1, deviceCacheOptions)
+	transports = upnp.NewDeviceCache(ctx, avtransport.Version1, deviceCacheOptions)
 
 	// TODO: support multiple Queues.
 	controlLoop.SetQueue(trackList)

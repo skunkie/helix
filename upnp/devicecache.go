@@ -36,7 +36,7 @@ const (
 )
 
 // NewDeviceCache returns a DeviceCache searching for the given URN, every refresh period, optionally on a specific network interface.
-func NewDeviceCache(urn URN, options DeviceCacheOptions) *DeviceCache {
+func NewDeviceCache(ctx context.Context, urn URN, options DeviceCacheOptions) *DeviceCache {
 	d := &DeviceCache{
 		urn:   urn,
 		iface: options.Interface,
@@ -44,19 +44,31 @@ func NewDeviceCache(urn URN, options DeviceCacheOptions) *DeviceCache {
 		devices: map[string]*Device{},
 	}
 
-	go d.Refresh()
+	d.Refresh(ctx)
+
 	go func() {
+		var ticker *time.Ticker
+		if len(d.Devices()) > 0 {
+			ticker = time.NewTicker(options.StableRefresh)
+		} else {
+			ticker = time.NewTicker(options.InitialRefresh)
+		}
+		defer ticker.Stop()
+
 		for {
-			for range time.Tick(options.InitialRefresh) {
-				d.Refresh()
-				if len(d.Devices()) > 0 {
-					break
-				}
-			}
-			for range time.Tick(options.StableRefresh) {
-				d.Refresh()
-				if len(d.Devices()) == 0 {
-					break
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				hadDevices := len(d.Devices()) > 0
+				d.Refresh(ctx)
+				hasDevices := len(d.Devices()) > 0
+
+				switch {
+				case !hadDevices && hasDevices:
+					ticker.Reset(options.StableRefresh)
+				case hadDevices && !hasDevices:
+					ticker.Reset(options.InitialRefresh)
 				}
 			}
 		}
@@ -66,14 +78,16 @@ func NewDeviceCache(urn URN, options DeviceCacheOptions) *DeviceCache {
 }
 
 // Refresh forces the DeviceCache to update itself by discovering UPnP devices.
-func (d *DeviceCache) Refresh() {
+func (d *DeviceCache) Refresh(ctx context.Context) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	log := logger.Background()
+	log, ctx := logger.FromContext(ctx)
 	log.AddField("upnp.urn", d.urn)
 
-	ctx, _ := context.WithTimeout(context.Background(), discoveryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, discoveryTimeout)
+	defer cancel()
+
 	devices, _, err := DiscoverDevices(ctx, d.urn, d.iface)
 	if err != nil {
 		log.Warning("could not find UPnP devices")

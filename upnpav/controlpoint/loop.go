@@ -72,12 +72,11 @@ func (a action) String() string {
 	}
 }
 
-func NewLoop() *Loop {
+func NewLoop(ctx context.Context) *Loop {
 	loop := &Loop{
 		state: avtransport.StateStopped,
 	}
 
-	ctx := context.Background()
 	go func() {
 		// We're using UDNs instead of pointer equality for the case.
 		var prevDevice *upnp.Device
@@ -88,76 +87,84 @@ func NewLoop() *Loop {
 		}
 		var protocolInfos []upnpav.ProtocolInfo
 
-		for range time.Tick(1 * time.Second) {
-			log, ctx := logger.FromContext(ctx)
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
 
-			deviceChanged := udnOrDefault(prevDevice, "") != udnOrDefault(loop.device, "")
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				log, ctx := logger.FromContext(ctx)
 
-			if deviceChanged && prevDevice != nil {
-				go func(transport avtransport.Interface, udn, name string) {
-					log, ctx := log.Fork(ctx)
-					log.AddField("transport.previous.udn", udn)
-					log.AddField("transport.previous.name", name)
+				deviceChanged := udnOrDefault(prevDevice, "") != udnOrDefault(loop.device, "")
 
-					if err := transport.Stop(ctx); err != nil {
-						log.WithError(err).Warning("could not stop previous transport")
-						return
+				if deviceChanged && prevDevice != nil {
+					go func(transport avtransport.Interface, udn, name string) {
+						log, ctx := log.Fork(ctx)
+						log.AddField("transport.previous.udn", udn)
+						log.AddField("transport.previous.name", name)
+
+						if err := transport.Stop(ctx); err != nil {
+							log.WithError(err).Warning("could not stop previous transport")
+							return
+						}
+						log.Info("stopped previous transport")
+					}(transport(prevDevice), prevDevice.UDN, prevDevice.Name)
+				}
+				prevDevice = loop.device
+
+				if loop.device == nil {
+					if deviceChanged {
+						log.Info("no current renderer device")
 					}
-					log.Info("stopped previous transport")
-				}(transport(prevDevice), prevDevice.UDN, prevDevice.Name)
-			}
-			prevDevice = loop.device
-
-			if loop.device == nil {
-				if deviceChanged {
-					log.Info("no current renderer device")
+					continue
 				}
-				continue
-			}
-			log.AddField("transport.udn", loop.device.UDN)
-			log.AddField("transport.name", loop.device.Name)
+				log.AddField("transport.udn", loop.device.UDN)
+				log.AddField("transport.name", loop.device.Name)
 
-			if deviceChanged { // && loop.device != nil
-				var err error
-				_, protocolInfos, err = manager(loop.device).ProtocolInfo(ctx)
+				if deviceChanged { // && loop.device != nil
+					var err error
+					_, protocolInfos, err = manager(loop.device).ProtocolInfo(ctx)
+					if err != nil {
+						loop.device = nil
+						log.WithError(err).Error("could not get sink protocols for renderer")
+						continue
+					}
+					if len(protocolInfos) == 0 {
+						loop.device = nil
+						log.WithError(err).Error("got 0 sink protocols for renderer, expected at least 1")
+						continue
+					}
+					log.Info("got sink protocols for renderer")
+				}
+
+				currTransport := transport(loop.device)
+				currTransportState, err := newTransportState(ctx, currTransport)
 				if err != nil {
-					loop.device = nil
-					log.WithError(err).Error("could not get sink protocols for renderer")
+					log.WithError(err).Error("could not get transport state")
 					continue
 				}
-				if len(protocolInfos) == 0 {
-					loop.device = nil
-					log.WithError(err).Error("got 0 sink protocols for renderer, expected at least 1")
-					continue
+
+				log.AddField("current.state", currTransportState.state)
+				if currTransportState.state == avtransport.StatePlaying || currTransportState.state == avtransport.StatePaused {
+					log.AddField("current.uri", currTransportState.uri)
 				}
-				log.Info("got sink protocols for renderer")
+				loop.duration = currTransportState.duration
+
+				newLoopState, newLoopElapsed, action := tick(loop.queue, protocolInfos, prevTransportState, currTransportState, loop.state, loop.elapsed, deviceChanged)
+
+				if loop.state != newLoopState {
+					loop.state = newLoopState
+					log.AddField("new.state", newLoopState)
+					log.Info("updated desired loop state")
+				}
+				loop.elapsed = newLoopElapsed
+
+				loop.enact(ctx, protocolInfos, action)
+
+				prevTransportState = currTransportState
 			}
-
-			currTransport := transport(loop.device)
-			currTransportState, err := newTransportState(ctx, currTransport)
-			if err != nil {
-				log.WithError(err).Error("could not get transport state")
-				continue
-			}
-
-			log.AddField("current.state", currTransportState.state)
-			if currTransportState.state == avtransport.StatePlaying || currTransportState.state == avtransport.StatePaused {
-				log.AddField("current.uri", currTransportState.uri)
-			}
-			loop.duration = currTransportState.duration
-
-			newLoopState, newLoopElapsed, action := tick(loop.queue, protocolInfos, prevTransportState, currTransportState, loop.state, loop.elapsed, deviceChanged)
-
-			if loop.state != newLoopState {
-				loop.state = newLoopState
-				log.AddField("new.state", newLoopState)
-				log.Info("updated desired loop state")
-			}
-			loop.elapsed = newLoopElapsed
-
-			loop.enact(ctx, protocolInfos, action)
-
-			prevTransportState = currTransportState
 		}
 	}()
 	return loop
