@@ -100,7 +100,19 @@ func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Inte
 	if err != nil {
 		return fmt.Errorf("could not listen on %v: %v", ssdpBroadcastAddr, err)
 	}
-	defer conn.Close()
+
+	var once sync.Once
+	closeConn := func() {
+		once.Do(func() {
+			conn.Close()
+		})
+	}
+	defer closeConn()
+
+	go func() {
+		<-ctx.Done()
+		closeConn()
+	}()
 
 	log, _ := logger.FromContext(ctx)
 	log.WithField("httpu.listener", ssdpBroadcastAddr).Info("serving HTTPU")
@@ -110,10 +122,9 @@ func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Inte
 			case discoverMethod:
 				return handleDiscover(r, d, url)
 			case notifyMethod:
-				// TODO: handleNotify()
+				// A device should not do anything with NOTIFY messages from other devices.
 				return nil
 			default:
-				log, _ := logger.FromContext(r.Context())
 				log.Warning("unknown method")
 				return nil
 			}
@@ -121,33 +132,58 @@ func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Inte
 	}
 
 	go func() {
-		for {
-			var reqs []*http.Request
-			for _, urn := range d.allURNs() {
-				reqs = append(reqs, notifyAliveRequest(ctx, d, urn, url))
-			}
-			reqs = append(reqs, notifyUpdateRequest(ctx, d, url))
+		ticker := time.NewTicker(notifyInterval)
+		defer ticker.Stop()
 
-			for _, req := range reqs {
-				delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond)))
-				go func(req *http.Request) {
-					if s.Running() {
-						<-time.After(delay)
-						err := httpu.Send(req, 1, iface)
-						if err != nil {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				var reqs []*http.Request
+				for _, urn := range d.allURNs() {
+					reqs = append(reqs, notifyAliveRequest(ctx, d, urn, url))
+				}
+				reqs = append(reqs, notifyUpdateRequest(ctx, d, url))
+
+				for _, req := range reqs {
+					delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond)))
+					go func(req *http.Request) {
+						if !s.Running() {
+							return
+						}
+
+						timer := time.NewTimer(delay)
+						defer timer.Stop()
+
+						select {
+						case <-timer.C:
+						case <-ctx.Done():
+							return
+						}
+
+						if !s.Running() {
+							return
+						}
+
+						if err := httpu.Send(req, 1, iface); err != nil {
 							log.Warning(err.Error())
 						}
 						log := log.WithField("httpu.method", req.Method)
 						log = log.WithField("httpu.notification.type", req.Header.Get("Nt"))
 						log.Debug("sent alive message")
-					}
-				}(req)
+					}(req)
+				}
 			}
-			<-time.After(notifyInterval)
 		}
 	}()
 
-	return s.Serve(conn)
+	err = s.Serve(conn)
+
+	if ctx.Err() != nil {
+		return nil
+	}
+	return err
 }
 
 func discoverRequest(ctx context.Context, urn URN) *http.Request {

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/ethulhu/helix/upnp/httpu"
 )
@@ -273,5 +274,33 @@ func TestNotifyByeByeRequests(t *testing.T) {
 		if !reflect.DeepEqual(reqs[i].Header, want[i].Header) {
 			t.Errorf("Request %d: got headers:\n%#v\nwant:\n%#v", i, reqs[i].Header, want[i].Header)
 		}
+	}
+}
+
+func TestBroadcastDevice_ContextCancel(t *testing.T) {
+	device := &Device{
+		UDN: "uuid:1234",
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- BroadcastDevice(ctx, device, "http://127.0.0.1:12345/desc.xml", nil, 50*time.Millisecond)
+	}()
+
+	// Give it a moment to start up.
+	time.Sleep(100 * time.Millisecond)
+
+	// Cancel the context and expect the function to return.
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Errorf("expected no error, but got: %v", err)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("BroadcastDevice did not return after context cancellation")
 	}
 }
