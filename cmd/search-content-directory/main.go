@@ -52,7 +52,7 @@ func main() {
 		StableRefresh:  *timeout,
 		Interface:      iface,
 	}
-	directories := upnp.NewDeviceCache(contentdirectory.Version1, opts)
+	directories := upnp.NewDeviceCache(ctx, contentdirectory.Version1, opts)
 
 	var directory contentdirectory.Interface
 	for {

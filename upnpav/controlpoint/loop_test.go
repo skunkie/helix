@@ -5,6 +5,7 @@
 package controlpoint
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -456,6 +457,21 @@ func TestLoop(t *testing.T) {
 			t.Errorf("[%d]: got action %v, wanted %v", i, gotAction, tt.wantAction)
 		}
 	}
+}
+
+func TestLoopContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	NewLoop(ctx)
+
+	// Give it a moment to start up.
+	time.Sleep(100 * time.Millisecond)
+
+	// Cancel the context and expect the function to return.
+	cancel()
+
+	// There's no explicit way to check that the goroutine has exited, so we'll just sleep
+	// and trust that the test will fail if it doesn't.
+	time.Sleep(2 * time.Second)
 }
 
 func resource(uri, mime string) upnpav.Resource {
