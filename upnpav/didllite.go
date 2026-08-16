@@ -291,6 +291,59 @@ func (d DIDLLite) IsSingleItem() bool {
 	return len(d.Containers) == 0 && len(d.Items) == 1
 }
 
+// Paginate returns a new DIDLLite containing a subset of containers and items
+// corresponding to [startingIndex, startingIndex+requestedCount).
+// If requestedCount is 0, all elements starting from startingIndex are returned.
+func (d *DIDLLite) Paginate(startingIndex, requestedCount uint) *DIDLLite {
+	if d == nil {
+		return nil
+	}
+
+	numContainers := uint(len(d.Containers))
+	numItems := uint(len(d.Items))
+	total := numContainers + numItems
+
+	if startingIndex >= total {
+		return &DIDLLite{}
+	}
+
+	res := &DIDLLite{}
+
+	var remaining uint
+	hasLimit := requestedCount > 0
+	if hasLimit {
+		remaining = requestedCount
+	}
+
+	if startingIndex < numContainers {
+		cStart := startingIndex
+		cEnd := numContainers
+		if hasLimit && remaining < cEnd-cStart {
+			cEnd = cStart + remaining
+		}
+		res.Containers = d.Containers[cStart:cEnd]
+		if hasLimit {
+			remaining -= uint(len(res.Containers))
+		}
+	}
+
+	if !hasLimit || remaining > 0 {
+		var iStart uint
+		if startingIndex > numContainers {
+			iStart = startingIndex - numContainers
+		}
+		if iStart < numItems {
+			iEnd := numItems
+			if hasLimit && remaining < iEnd-iStart {
+				iEnd = iStart + remaining
+			}
+			res.Items = d.Items[iStart:iEnd]
+		}
+	}
+
+	return res
+}
+
 // DIDLForURI returns a minimal DIDL sufficient to get media to play with just a URI.
 //
 // NB: It may not be enough, e.g. my TV needs more information about the video

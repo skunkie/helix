@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -26,6 +27,9 @@ var (
 
 	object = flag.String("object", "0", "object to list (0 means root)")
 	server = flag.String("server", "", "UDN of server to list")
+
+	startingIndex  = flag.Int("starting-index", 0, "starting index to enumerate results")
+	requestedCount = flag.Int("requested-count", 0, "requested number of entries (0 means all)")
 
 	timeout = flag.Duration("timeout", 2*time.Second, "how long to wait for device discovery")
 	iface   = flag.Custom("interface", "", "network interface to discover on (optional)", func(raw string) (interface{}, error) {
@@ -68,7 +72,7 @@ func main() {
 		log.Print("could not find ContentDirectory; sleeping and retrying")
 	}
 
-	didl, err := directory.Search(ctx, upnpav.ObjectID(*object), query)
+	didl, _, err := directory.Search(ctx, upnpav.ObjectID(*object), query, uint(*startingIndex), uint(*requestedCount), nil)
 	if err != nil {
 		log.Printf("could not search ContentDirectory: %v", err)
 

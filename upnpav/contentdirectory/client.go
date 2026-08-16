@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -70,36 +71,42 @@ func (c *client) XGetFeatureList(ctx context.Context) ([]string, error) {
 }
 
 func (c *client) BrowseMetadata(ctx context.Context, object upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
-	return c.browse(ctx, browseMetadata, object, sortCriteria)
+	didl, _, err := c.browse(ctx, browseMetadata, object, 0, 0, sortCriteria)
+	return didl, err
 }
-func (c *client) BrowseChildren(ctx context.Context, object upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
-	return c.browse(ctx, browseChildren, object, sortCriteria)
+func (c *client) BrowseChildren(ctx context.Context, object upnpav.ObjectID, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
+	return c.browse(ctx, browseChildren, object, startingIndex, requestedCount, sortCriteria)
 }
-func (c *client) browse(ctx context.Context, bf browseFlag, object upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
+func (c *client) browse(ctx context.Context, bf browseFlag, object upnpav.ObjectID, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
 	req := browseRequest{
-		Object:       object,
-		BrowseFlag:   bf,
-		Filter:       xmltypes.CommaSeparatedStrings{"*"},
-		SortCriteria: sortCriteria,
+		Object:         object,
+		BrowseFlag:     bf,
+		Filter:         xmltypes.CommaSeparatedStrings{"*"},
+		StartingIndex:  startingIndex,
+		RequestedCount: requestedCount,
+		SortCriteria:   sortCriteria,
 	}
 
 	rsp := browseResponse{}
 	if err := c.call(ctx, browse, req, &rsp); err != nil {
-		return nil, fmt.Errorf("could not perform Browse request: %w", err)
+		return nil, 0, fmt.Errorf("could not perform Browse request: %w", err)
 	}
-	return &rsp.Result.DIDLLite, nil
+	return &rsp.Result.DIDLLite, rsp.TotalMatches, nil
 }
 
-func (c *client) Search(ctx context.Context, container upnpav.ObjectID, criteria search.Criteria) (*upnpav.DIDLLite, error) {
+func (c *client) Search(ctx context.Context, container upnpav.ObjectID, criteria search.Criteria, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
 	req := searchRequest{
 		Container:      container,
 		Filter:         xmltypes.CommaSeparatedStrings{"*"},
 		SearchCriteria: criteria.String(),
+		StartingIndex:  startingIndex,
+		RequestedCount: requestedCount,
+		SortCriteria:   sortCriteria,
 	}
 
 	rsp := searchResponse{}
-	if err := c.call(ctx, "Search", req, &rsp); err != nil {
-		return nil, fmt.Errorf("could not perform Search request: %w", err)
+	if err := c.call(ctx, searchA, req, &rsp); err != nil {
+		return nil, 0, fmt.Errorf("could not perform Search request: %w", err)
 	}
-	return &rsp.Result.DIDLLite, nil
+	return &rsp.Result.DIDLLite, rsp.TotalMatches, nil
 }

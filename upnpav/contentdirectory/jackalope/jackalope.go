@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -128,7 +129,7 @@ func (cd *contentDirectory) BrowseMetadata(ctx context.Context, id upnpav.Object
 	return &upnpav.DIDLLite{Items: items}, nil
 }
 
-func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
+func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.ObjectID, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
 	log, ctx := logger.FromContext(ctx)
 	log.AddField("jackalope.method", "BrowseChildren")
 	log.AddField("object", id)
@@ -137,16 +138,17 @@ func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.Object
 		containers, err := cd.containersForPaths(nil)
 		if err != nil {
 			log.WithError(err).Error("could not list tags from Jackalope")
-			return nil, upnpav.ErrActionFailed
+			return nil, 0, upnpav.ErrActionFailed
 		}
 		if len(containers) > 0 {
-			return &upnpav.DIDLLite{Containers: containers}, nil
+			didl := &upnpav.DIDLLite{Containers: containers}
+			return didl.Paginate(startingIndex, requestedCount), uint(len(containers)), nil
 		}
 
 		rawPaths, err := cd.jackalope.Query("*")
 		if err != nil {
 			log.WithError(err).Error("could not query jackalope")
-			return nil, upnpav.ErrActionFailed
+			return nil, 0, upnpav.ErrActionFailed
 		}
 
 		var paths []string
@@ -163,7 +165,7 @@ func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.Object
 		items, err := cd.itemsForPaths(paths...)
 		if err != nil {
 			log.WithError(err).Warning("could not describe items from path")
-			return nil, upnpav.ErrActionFailed
+			return nil, 0, upnpav.ErrActionFailed
 		}
 
 		didllite := &upnpav.DIDLLite{Items: items}
@@ -175,19 +177,20 @@ func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.Object
 				})
 			}
 		}
-		return didllite, nil
+		totalMatches := uint(len(didllite.Containers) + len(didllite.Items))
+		return didllite.Paginate(startingIndex, requestedCount), totalMatches, nil
 	}
 
 	query, ok := queryForObjectID(id)
 	if !ok {
 		log.Warning("bad query")
-		return nil, contentdirectory.ErrNoSuchObject
+		return nil, 0, contentdirectory.ErrNoSuchObject
 	}
 
 	rawPaths, err := cd.jackalope.Query(query.String())
 	if err != nil {
 		log.WithError(err).Error("could not query Jackalope")
-		return nil, upnpav.ErrActionFailed
+		return nil, 0, upnpav.ErrActionFailed
 	}
 
 	var paths []string
@@ -204,13 +207,13 @@ func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.Object
 	containers, err := cd.containersForPaths(query, paths...)
 	if err != nil {
 		log.WithError(err).Error("could not list tags from Jackalope")
-		return nil, upnpav.ErrActionFailed
+		return nil, 0, upnpav.ErrActionFailed
 	}
 
 	items, err := cd.itemsForPaths(paths...)
 	if err != nil {
 		log.WithError(err).Warning("could not describe items from path")
-		return nil, upnpav.ErrActionFailed
+		return nil, 0, upnpav.ErrActionFailed
 	}
 
 	didllite := &upnpav.DIDLLite{Containers: containers, Items: items}
@@ -219,11 +222,12 @@ func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.Object
 		if criteria == "dc:title" {
 			sort.SliceStable(didllite.Items, func(i, j int) bool {
 				return didllite.Items[i].Title < didllite.Items[j].Title
-				})
+			})
 		}
 	}
 
-	return didllite, nil
+	totalMatches := uint(len(didllite.Containers) + len(didllite.Items))
+	return didllite.Paginate(startingIndex, requestedCount), totalMatches, nil
 }
 
 func (cd *contentDirectory) SearchCapabilities(_ context.Context) ([]string, error) {
@@ -235,8 +239,8 @@ func (cd *contentDirectory) SortCapabilities(_ context.Context) ([]string, error
 func (cd *contentDirectory) SystemUpdateID(_ context.Context) (uint, error) {
 	return 0, nil
 }
-func (cd *contentDirectory) Search(_ context.Context, _ upnpav.ObjectID, _ search.Criteria) (*upnpav.DIDLLite, error) {
-	return nil, nil
+func (cd *contentDirectory) Search(_ context.Context, _ upnpav.ObjectID, _ search.Criteria, _, _ uint, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
+	return nil, 0, nil
 }
 func (cd *contentDirectory) XGetFeatureList(_ context.Context) ([]string, error) {
 	// TODO: figure out what this should do.

@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -76,7 +77,7 @@ func getObjectJSON(w http.ResponseWriter, r *http.Request) {
 	case self.IsSingleContainer():
 		data = directoryObjectFromContainer(udn, self.Containers[0])
 
-		children, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object), nil)
+		children, _, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object), 0, 0, nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("could not fetch object children: %v", err), http.StatusInternalServerError)
 			return
@@ -119,7 +120,7 @@ func searchUnderObjectJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	rsp, err := directory.Search(ctx, upnpav.ObjectID(object), criteria)
+	rsp, _, err := directory.Search(ctx, upnpav.ObjectID(object), criteria, 0, 0, nil)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("could not fetch object metadata: %v", err), http.StatusInternalServerError)
 		return
@@ -404,7 +405,7 @@ func appendToQueue(w http.ResponseWriter, r *http.Request) {
 		httputil.MustWriteJSON(w, []queueItem{data})
 
 	case didllite.IsSingleContainer():
-		didllite, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object), nil)
+		didllite, _, err := directory.BrowseChildren(ctx, upnpav.ObjectID(object), 0, 0, nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

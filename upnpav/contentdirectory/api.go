@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -17,24 +18,24 @@ import (
 type (
 	Interface interface {
 		// SearchCapabilities returns the search capabilities of the ContentDirectory service.
-		SearchCapabilities(context.Context) ([]string, error)
+		SearchCapabilities(ctx context.Context) ([]string, error)
 
 		// SortCapabilities returns the sort capabilities of the ContentDirectory service.
-		SortCapabilities(context.Context) ([]string, error)
+		SortCapabilities(ctx context.Context) ([]string, error)
 
 		// BrowseMetadata shows information about a given object.
-		BrowseMetadata(context.Context, upnpav.ObjectID, xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error)
+		BrowseMetadata(ctx context.Context, id upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error)
 
 		// BrowseChildren lists the child objects of a given object.
-		BrowseChildren(context.Context, upnpav.ObjectID, xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error)
+		BrowseChildren(ctx context.Context, id upnpav.ObjectID, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error)
 
 		// Search queries the ContentDirectory service for objects under a given object that match a given criteria.
-		Search(context.Context, upnpav.ObjectID, search.Criteria) (*upnpav.DIDLLite, error)
+		Search(ctx context.Context, id upnpav.ObjectID, criteria search.Criteria, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error)
 
 		SystemUpdateID(ctx context.Context) (uint, error)
 
 		// XGetFeatureList returns the feature list of the ContentDirectory service.
-		XGetFeatureList(context.Context) ([]string, error)
+		XGetFeatureList(ctx context.Context) ([]string, error)
 	}
 )
 

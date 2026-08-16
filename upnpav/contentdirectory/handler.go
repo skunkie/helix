@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -8,23 +9,14 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/ethulhu/helix/logger"
+	"github.com/ethulhu/helix/soap"
 	"github.com/ethulhu/helix/upnpav"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/search"
 	"github.com/ethulhu/helix/xmltypes"
 )
-
-func detectPrefix(requestBody []byte, actionName string) string {
-	re := regexp.MustCompile(`<([a-zA-Z][a-zA-Z0-9]*:)?` + actionName + `\s+`)
-	match := re.FindSubmatch(requestBody)
-	if len(match) > 1 && len(match[1]) > 0 {
-		return strings.TrimSuffix(string(match[1]), ":")
-	}
-	return ""
-}
 
 type (
 	SOAPHandler struct {
@@ -33,8 +25,8 @@ type (
 )
 
 func (h SOAPHandler) Call(ctx context.Context, namespace, action string, in []byte) ([]byte, error) {
-	if namespace != string(Version1) {
-		return nil, fmt.Errorf("invalid namespace")
+	if !strings.EqualFold(namespace, string(Version1)) {
+		return nil, fmt.Errorf("invalid namespace: %q", namespace)
 	}
 
 	switch action {
@@ -70,7 +62,7 @@ func (h SOAPHandler) getSearchCapabilities(ctx context.Context, in []byte) ([]by
 		Capabilities: caps,
 	}
 
-	prefix := detectPrefix(in, getSearchCapabilities)
+	prefix := soap.DetectPrefix(in, getSearchCapabilities)
 	if prefix != "" {
 		rsp.XMLName = xml.Name{Local: prefix + ":GetSearchCapabilitiesResponse"}
 		rsp.Xmlns = []xml.Attr{{Name: xml.Name{Local: "xmlns:" + prefix}, Value: string(Version1)}}
@@ -83,7 +75,7 @@ func (h SOAPHandler) getSearchCapabilities(ctx context.Context, in []byte) ([]by
 func (h SOAPHandler) getSortCapabilities(ctx context.Context, in []byte) ([]byte, error) {
 	req := getSortCapabilitiesRequest{}
 	if err := xml.Unmarshal(in, &req); err != nil {
-		return nil, err
+		return nil, upnpav.ErrInvalidArgs
 	}
 
 	caps, err := h.Interface.SortCapabilities(ctx)
@@ -95,7 +87,7 @@ func (h SOAPHandler) getSortCapabilities(ctx context.Context, in []byte) ([]byte
 		Capabilities: caps,
 	}
 
-	prefix := detectPrefix(in, getSortCapabilities)
+	prefix := soap.DetectPrefix(in, getSortCapabilities)
 	if prefix != "" {
 		rsp.XMLName = xml.Name{Local: prefix + ":GetSortCapabilitiesResponse"}
 		rsp.Xmlns = []xml.Attr{{Name: xml.Name{Local: "xmlns:" + prefix}, Value: string(Version1)}}
@@ -108,7 +100,7 @@ func (h SOAPHandler) getSortCapabilities(ctx context.Context, in []byte) ([]byte
 func (h SOAPHandler) getSystemUpdateID(ctx context.Context, in []byte) ([]byte, error) {
 	req := getSystemUpdateIDRequest{}
 	if err := xml.Unmarshal(in, &req); err != nil {
-		return nil, err
+		return nil, upnpav.ErrInvalidArgs
 	}
 
 	id, err := h.Interface.SystemUpdateID(ctx)
@@ -120,7 +112,7 @@ func (h SOAPHandler) getSystemUpdateID(ctx context.Context, in []byte) ([]byte, 
 		SystemUpdateID: id,
 	}
 
-	prefix := detectPrefix(in, getSystemUpdateID)
+	prefix := soap.DetectPrefix(in, getSystemUpdateID)
 	if prefix != "" {
 		rsp.XMLName = xml.Name{Local: prefix + ":GetSystemUpdateIDResponse"}
 		rsp.Xmlns = []xml.Attr{{Name: xml.Name{Local: "xmlns:" + prefix}, Value: string(Version1)}}
@@ -146,7 +138,7 @@ func (h SOAPHandler) xGetFeatureList(ctx context.Context, in []byte) ([]byte, er
 		FeatureList: xmltypes.CommaSeparatedStrings(featureList),
 	}
 
-	prefix := detectPrefix(in, xGetFeatureList)
+	prefix := soap.DetectPrefix(in, xGetFeatureList)
 	if prefix != "" {
 		rsp.XMLName = xml.Name{Local: prefix + ":X_GetFeatureListResponse"}
 		rsp.Xmlns = []xml.Attr{{Name: xml.Name{Local: "xmlns:" + prefix}, Value: string(Version1)}}
@@ -167,11 +159,15 @@ func (h SOAPHandler) browse(ctx context.Context, in []byte) ([]byte, error) {
 
 	var err error
 	var didllite *upnpav.DIDLLite
+	var totalMatches uint
 	switch req.BrowseFlag {
 	case browseMetadata:
 		didllite, err = h.Interface.BrowseMetadata(ctx, req.Object, req.SortCriteria)
+		if didllite != nil {
+			totalMatches = uint(len(didllite.Containers) + len(didllite.Items))
+		}
 	case browseChildren:
-		didllite, err = h.Interface.BrowseChildren(ctx, req.Object, req.SortCriteria)
+		didllite, totalMatches, err = h.Interface.BrowseChildren(ctx, req.Object, req.StartingIndex, req.RequestedCount, req.SortCriteria)
 	default:
 		return nil, upnpav.ErrInvalidArgs
 	}
@@ -183,7 +179,7 @@ func (h SOAPHandler) browse(ctx context.Context, in []byte) ([]byte, error) {
 	if didllite != nil {
 		rsp.Result = upnpav.EncodedDIDLLite{DIDLLite: *didllite}
 		rsp.NumberReturned = uint(len(didllite.Containers) + len(didllite.Items))
-		rsp.TotalMatches = uint(len(didllite.Containers) + len(didllite.Items))
+		rsp.TotalMatches = totalMatches
 		updateID, err := h.Interface.SystemUpdateID(ctx)
 		if err != nil {
 			log.WithError(err).Warning("could not get system update ID")
@@ -192,7 +188,7 @@ func (h SOAPHandler) browse(ctx context.Context, in []byte) ([]byte, error) {
 		}
 	}
 
-	prefix := detectPrefix(in, browse)
+	prefix := soap.DetectPrefix(in, browse)
 	if prefix != "" {
 		rsp.XMLName = xml.Name{Local: prefix + ":BrowseResponse"}
 		rsp.Xmlns = []xml.Attr{{Name: xml.Name{Local: "xmlns:" + prefix}, Value: string(Version1)}}
@@ -205,8 +201,8 @@ func (h SOAPHandler) browse(ctx context.Context, in []byte) ([]byte, error) {
 
 func (h SOAPHandler) search(ctx context.Context, in []byte) ([]byte, error) {
 	req := searchRequest{}
+	log, _ := logger.FromContext(ctx)
 	if err := xml.Unmarshal(in, &req); err != nil {
-		log, _ := logger.FromContext(ctx)
 		log.WithError(err).Warning("could not unmarshal request")
 		return nil, upnpav.ErrInvalidArgs
 	}
@@ -216,7 +212,7 @@ func (h SOAPHandler) search(ctx context.Context, in []byte) ([]byte, error) {
 		return nil, fmt.Errorf("could not parse search query: %v", err)
 	}
 
-	didllite, err := h.Interface.Search(ctx, req.Container, criteria)
+	didllite, totalMatches, err := h.Interface.Search(ctx, req.Container, criteria, req.StartingIndex, req.RequestedCount, req.SortCriteria)
 	if err != nil {
 		return nil, err
 	}
@@ -224,9 +220,17 @@ func (h SOAPHandler) search(ctx context.Context, in []byte) ([]byte, error) {
 	rsp := searchResponse{}
 	if didllite != nil {
 		rsp.Result = upnpav.EncodedDIDLLite{DIDLLite: *didllite}
+		rsp.NumberReturned = uint(len(didllite.Containers) + len(didllite.Items))
+		rsp.TotalMatches = totalMatches
+		updateID, err := h.Interface.SystemUpdateID(ctx)
+		if err != nil {
+			log.WithError(err).Warning("could not get system update ID")
+		} else {
+			rsp.UpdateID = updateID
+		}
 	}
 
-	prefix := detectPrefix(in, searchA)
+	prefix := soap.DetectPrefix(in, searchA)
 	if prefix != "" {
 		rsp.XMLName = xml.Name{Local: prefix + ":SearchResponse"}
 		rsp.Xmlns = []xml.Attr{{Name: xml.Name{Local: "xmlns:" + prefix}, Value: string(Version1)}}

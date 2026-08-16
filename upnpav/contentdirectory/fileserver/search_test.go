@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/ethulhu/helix/media"
+	"github.com/ethulhu/helix/upnpav/contentdirectory"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/search"
+	"github.com/ethulhu/helix/xmltypes"
 )
 
 type mockMetadataCache struct{}
@@ -35,11 +37,46 @@ func (m *mockMetadataCache) MetadataForPath(p string) (*media.Metadata, error) {
 		return nil, fmt.Errorf("unsupported for mock: %v", fileName)
 	}
 	return &media.Metadata{
-		Title:    fileName,
-		MIMEType: mimeType,
-		Duration: 1 * time.Second,
+		Title:     fileName,
+		MIMEType:  mimeType,
+		Duration:  1 * time.Second,
 		SizeBytes: 1234,
 	}, nil
+}
+
+func TestSearchSortsBeforePagination(t *testing.T) {
+	tmpdir := t.TempDir()
+	for _, file := range []string{"charlie.mp3", "alpha.mp3", "bravo.mp3"} {
+		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0644); err != nil {
+			t.Fatalf("creating dummy file: %v", err)
+		}
+	}
+
+	baseURL, err := url.Parse("http://localhost/")
+	if err != nil {
+		t.Fatalf("parsing base URL: %v", err)
+	}
+	cd := &ContentDirectory{basePath: tmpdir, baseURL: baseURL, metadataCache: &mockMetadataCache{}}
+	criteria, err := search.Parse("*")
+	if err != nil {
+		t.Fatalf("parsing criteria: %v", err)
+	}
+
+	result, total, err := cd.Search(context.Background(), "0", criteria, 1, 1, xmltypes.CommaSeparatedStrings{"-dc:title"})
+	if err != nil {
+		t.Fatalf("Search failed: %v", err)
+	}
+	if total != 3 {
+		t.Fatalf("total = %d, want 3", total)
+	}
+	if len(result.Items) != 1 || result.Items[0].Title != "bravo.mp3" {
+		t.Fatalf("items = %+v, want the second descending title", result.Items)
+	}
+
+	_, _, err = cd.Search(context.Background(), "0", criteria, 0, 0, xmltypes.CommaSeparatedStrings{"+dc:date"})
+	if err != contentdirectory.ErrInvalidSortCriteria {
+		t.Fatalf("unsupported sort error = %v, want %v", err, contentdirectory.ErrInvalidSortCriteria)
+	}
 }
 
 func (m *mockMetadataCache) MetadataForPaths(paths []string) []*media.Metadata {
@@ -115,7 +152,7 @@ func TestSearch(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parsing criteria: %v", err)
 			}
-			result, err := cd.Search(context.Background(), "0", crit)
+			result, _, err := cd.Search(context.Background(), "0", crit, 0, 0, nil)
 			if err != nil {
 				t.Fatalf("Search failed: %v", err)
 			}

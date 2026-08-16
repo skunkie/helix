@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -162,7 +163,7 @@ func (cd *ContentDirectory) BrowseMetadata(_ context.Context, id upnpav.ObjectID
 	return &upnpav.DIDLLite{Items: items}, nil
 }
 
-func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.ObjectID, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
+func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.ObjectID, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
 	fields := log.Fields{
 		"method": "BrowseChildren",
 		"object": parent,
@@ -171,23 +172,23 @@ func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.Obje
 	p, ok := pathForObjectID(cd.basePath, parent)
 	if !ok {
 		log.WithFields(fields).Error("bad path")
-		return nil, contentdirectory.ErrNoSuchObject
+		return nil, 0, contentdirectory.ErrNoSuchObject
 	}
 
 	fi, err := os.Stat(p)
 	if errors.Is(err, os.ErrNotExist) {
 		log.WithFields(fields).Info("path does not exist")
-		return nil, contentdirectory.ErrNoSuchObject
+		return nil, 0, contentdirectory.ErrNoSuchObject
 	}
 	if err != nil {
 		fields["error"] = err
 		log.WithFields(fields).Warning("could not stat path")
-		return nil, upnpav.ErrActionFailed
+		return nil, 0, upnpav.ErrActionFailed
 	}
 
 	if !fi.IsDir() {
 		log.WithFields(fields).Info("not a directory")
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	didllite := &upnpav.DIDLLite{}
@@ -196,7 +197,7 @@ func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.Obje
 	if err != nil {
 		fields["error"] = err
 		log.WithFields(fields).Error("could not list directory")
-		return didllite, upnpav.ErrActionFailed
+		return didllite, 0, upnpav.ErrActionFailed
 	}
 
 	var itemPaths []string
@@ -236,7 +237,8 @@ func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.Obje
 		}
 	}
 
-	return didllite, nil
+	totalMatches := uint(len(didllite.Containers) + len(didllite.Items))
+	return didllite.Paginate(startingIndex, requestedCount), totalMatches, nil
 }
 
 func (cd *ContentDirectory) SearchCapabilities(_ context.Context) ([]string, error) {
@@ -257,7 +259,7 @@ func (cd *ContentDirectory) IncrementSystemUpdateID() {
 	cd.systemUpdateID++
 }
 
-func (cd *ContentDirectory) Search(ctx context.Context, id upnpav.ObjectID, criteria search.Criteria) (*upnpav.DIDLLite, error) {
+func (cd *ContentDirectory) Search(ctx context.Context, id upnpav.ObjectID, criteria search.Criteria, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
 	results := &upnpav.DIDLLite{}
 	walkFn := func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -283,13 +285,29 @@ func (cd *ContentDirectory) Search(ctx context.Context, id upnpav.ObjectID, crit
 
 	p, ok := pathForObjectID(cd.basePath, id)
 	if !ok {
-		return nil, contentdirectory.ErrNoSuchObject
+		return nil, 0, contentdirectory.ErrNoSuchObject
 	}
 
 	if err := filepath.Walk(p, walkFn); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return results, nil
+	for i := len(sortCriteria) - 1; i >= 0; i-- {
+		criterion := sortCriteria[i]
+		descending := strings.HasPrefix(criterion, "-")
+		property := strings.TrimPrefix(strings.TrimPrefix(criterion, "+"), "-")
+		if property != "dc:title" {
+			return nil, 0, contentdirectory.ErrInvalidSortCriteria
+		}
+		sort.SliceStable(results.Items, func(i, j int) bool {
+			if descending {
+				return results.Items[i].Title > results.Items[j].Title
+			}
+			return results.Items[i].Title < results.Items[j].Title
+		})
+	}
+
+	totalMatches := uint(len(results.Containers) + len(results.Items))
+	return results.Paginate(startingIndex, requestedCount), totalMatches, nil
 }
 
 func (cd *ContentDirectory) containerFromPath(p string) (upnpav.Container, error) {

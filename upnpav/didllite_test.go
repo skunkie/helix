@@ -226,6 +226,126 @@ func TestMarshalDIDLLite(t *testing.T) {
 	}
 }
 
+func TestDIDLLitePaginate(t *testing.T) {
+	sample := &DIDLLite{
+		Containers: []Container{
+			{ID: "c1", Title: "Container 1"},
+			{ID: "c2", Title: "Container 2"},
+		},
+		Items: []Item{
+			{ID: "i1", Title: "Item 1"},
+			{ID: "i2", Title: "Item 2"},
+			{ID: "i3", Title: "Item 3"},
+		},
+	}
+
+	tests := []struct {
+		name           string
+		startingIndex  uint
+		requestedCount uint
+		wantContainers []string
+		wantItems      []string
+	}{
+		{
+			name:           "all elements (count 0)",
+			startingIndex:  0,
+			requestedCount: 0,
+			wantContainers: []string{"c1", "c2"},
+			wantItems:      []string{"i1", "i2", "i3"},
+		},
+		{
+			name:           "first page across containers only",
+			startingIndex:  0,
+			requestedCount: 1,
+			wantContainers: []string{"c1"},
+			wantItems:      nil,
+		},
+		{
+			name:           "span containers and items",
+			startingIndex:  1,
+			requestedCount: 2,
+			wantContainers: []string{"c2"},
+			wantItems:      []string{"i1"},
+		},
+		{
+			name:           "items only start from item 0",
+			startingIndex:  2,
+			requestedCount: 2,
+			wantContainers: nil,
+			wantItems:      []string{"i1", "i2"},
+		},
+		{
+			name:           "items with offset",
+			startingIndex:  3,
+			requestedCount: 2,
+			wantContainers: nil,
+			wantItems:      []string{"i2", "i3"},
+		},
+		{
+			name:           "items with count exceeding remainder",
+			startingIndex:  4,
+			requestedCount: 5,
+			wantContainers: nil,
+			wantItems:      []string{"i3"},
+		},
+		{
+			name:           "maximum count does not overflow",
+			startingIndex:  1,
+			requestedCount: ^uint(0),
+			wantContainers: []string{"c2"},
+			wantItems:      []string{"i1", "i2", "i3"},
+		},
+		{
+			name:           "starting index past total elements",
+			startingIndex:  10,
+			requestedCount: 5,
+			wantContainers: nil,
+			wantItems:      nil,
+		},
+		{
+			name:           "offset from container to end (count 0)",
+			startingIndex:  1,
+			requestedCount: 0,
+			wantContainers: []string{"c2"},
+			wantItems:      []string{"i1", "i2", "i3"},
+		},
+		{
+			name:           "offset from item to end (count 0)",
+			startingIndex:  3,
+			requestedCount: 0,
+			wantContainers: nil,
+			wantItems:      []string{"i2", "i3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sample.Paginate(tt.startingIndex, tt.requestedCount)
+			var gotContainers []string
+			for _, c := range got.Containers {
+				gotContainers = append(gotContainers, string(c.ID))
+			}
+			var gotItems []string
+			for _, item := range got.Items {
+				gotItems = append(gotItems, string(item.ID))
+			}
+
+			if !reflect.DeepEqual(gotContainers, tt.wantContainers) {
+				t.Errorf("Containers = %v, want %v", gotContainers, tt.wantContainers)
+			}
+			if !reflect.DeepEqual(gotItems, tt.wantItems) {
+				t.Errorf("Items = %v, want %v", gotItems, tt.wantItems)
+			}
+		})
+	}
+
+	// Test nil receiver
+	var nilDIDL *DIDLLite
+	if got := nilDIDL.Paginate(0, 5); got != nil {
+		t.Errorf("nil.Paginate() = %v, want nil", got)
+	}
+}
+
 func TestDIDLLiteHelpers(t *testing.T) {
 	cOnly := DIDLLite{Containers: []Container{{ID: "c1"}}}
 	iOnly := DIDLLite{Items: []Item{{ID: "i1"}}}

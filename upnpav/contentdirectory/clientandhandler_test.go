@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -81,7 +82,7 @@ func TestClientAndHandler(t *testing.T) {
 		t.Fatalf("BrowseMetadata(_, %q) == %v, want %v", fh.browseMetadataObject, browseMetadataDIDLLite, fh.browseMetadataDIDLLite)
 	}
 
-	browseChildrenDIDLLite, err := client.BrowseChildren(ctx, fh.browseChildrenObject, nil)
+	browseChildrenDIDLLite, _, err := client.BrowseChildren(ctx, fh.browseChildrenObject, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("BrowseChildren(_, %q) returned error: %v", fh.browseChildrenObject, err)
 	}
@@ -89,7 +90,7 @@ func TestClientAndHandler(t *testing.T) {
 		t.Fatalf("BrowseChildren(_, %q) == %v, want %v", fh.browseChildrenObject, browseChildrenDIDLLite, fh.browseChildrenDIDLLite)
 	}
 
-	searchDIDLLite, err := client.Search(ctx, fh.searchObject, fh.searchCriteria)
+	searchDIDLLite, _, err := client.Search(ctx, fh.searchObject, fh.searchCriteria, 0, 0, nil)
 	if err != nil {
 		t.Fatalf("Search(_, %q, %q) returned error: %v", fh.searchObject, fh.searchCriteria, err)
 	}
@@ -135,18 +136,26 @@ func (f *fakeHandler) BrowseMetadata(_ context.Context, id upnpav.ObjectID, _ xm
 	}
 	return f.browseMetadataDIDLLite, nil
 }
-func (f *fakeHandler) BrowseChildren(_ context.Context, id upnpav.ObjectID, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
+func (f *fakeHandler) BrowseChildren(_ context.Context, id upnpav.ObjectID, startingIndex, requestedCount uint, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
 	if id != f.browseChildrenObject {
-		return nil, fmt.Errorf("id == %v", id)
+		return nil, 0, fmt.Errorf("id == %v", id)
 	}
-	return f.browseChildrenDIDLLite, nil
+	totalMatches := uint(0)
+	if f.browseChildrenDIDLLite != nil {
+		totalMatches = uint(len(f.browseChildrenDIDLLite.Containers) + len(f.browseChildrenDIDLLite.Items))
+	}
+	return f.browseChildrenDIDLLite.Paginate(startingIndex, requestedCount), totalMatches, nil
 }
-func (f *fakeHandler) Search(_ context.Context, id upnpav.ObjectID, criteria search.Criteria) (*upnpav.DIDLLite, error) {
+func (f *fakeHandler) Search(_ context.Context, id upnpav.ObjectID, criteria search.Criteria, _, _ uint, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
 	if id != f.searchObject {
-		return nil, fmt.Errorf("id == %v", id)
+		return nil, 0, fmt.Errorf("id == %v", id)
 	}
 	if !reflect.DeepEqual(criteria, f.searchCriteria) {
-		return nil, fmt.Errorf("criteria == %v", criteria)
+		return nil, 0, fmt.Errorf("criteria == %v", criteria)
 	}
-	return f.searchDIDLLite, nil
+	totalMatches := uint(0)
+	if f.searchDIDLLite != nil {
+		totalMatches = uint(len(f.searchDIDLLite.Containers) + len(f.searchDIDLLite.Items))
+	}
+	return f.searchDIDLLite, totalMatches, nil
 }
