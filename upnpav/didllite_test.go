@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -222,5 +223,84 @@ func TestMarshalDIDLLite(t *testing.T) {
 		if tt.want != got {
 			t.Errorf("[%d]: got:\n\n%+v\n\nwant:\n\n%+v", i, got, tt.want)
 		}
+	}
+}
+
+func TestDIDLLiteHelpers(t *testing.T) {
+	cOnly := DIDLLite{Containers: []Container{{ID: "c1"}}}
+	iOnly := DIDLLite{Items: []Item{{ID: "i1"}}}
+	both := DIDLLite{Containers: []Container{{ID: "c1"}}, Items: []Item{{ID: "i1"}}}
+	empty := DIDLLite{}
+
+	if !cOnly.IsSingleContainer() || iOnly.IsSingleContainer() || both.IsSingleContainer() || empty.IsSingleContainer() {
+		t.Errorf("IsSingleContainer failed")
+	}
+
+	if !iOnly.IsSingleItem() || cOnly.IsSingleItem() || both.IsSingleItem() || empty.IsSingleItem() {
+		t.Errorf("IsSingleItem failed")
+	}
+}
+
+func TestEncodedDIDLLite(t *testing.T) {
+	original := EncodedDIDLLite{
+		DIDLLite: DIDLLite{
+			Items: []Item{
+				{
+					ID:    "item-1",
+					Title: "Sample Track",
+					Class: "object.item.audioItem.musicTrack",
+				},
+			},
+		},
+	}
+
+	text, err := original.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText error: %v", err)
+	}
+
+	var decoded EncodedDIDLLite
+	if err := decoded.UnmarshalText(text); err != nil {
+		t.Fatalf("UnmarshalText error: %v", err)
+	}
+
+	if len(decoded.Items) != 1 || decoded.Items[0].Title != "Sample Track" {
+		t.Errorf("decoded = %v, want original items", decoded)
+	}
+
+	var badDecoded EncodedDIDLLite
+	if err := badDecoded.UnmarshalText([]byte("invalid XML <<>>")); err == nil {
+		t.Errorf("expected unmarshal error for invalid XML, got nil")
+	}
+}
+
+func TestDIDLForURI(t *testing.T) {
+	didl, err := DIDLForURI("http://example.com/movie.mp4")
+	if err != nil {
+		t.Fatalf("DIDLForURI failed: %v", err)
+	}
+	if len(didl.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(didl.Items))
+	}
+	item := didl.Items[0]
+	if item.Class != "object.item.videoItem" {
+		t.Errorf("item.Class = %v, want videoItem", item.Class)
+	}
+	if !item.HasURI("http://example.com/movie.mp4") {
+		t.Errorf("HasURI(movie.mp4) = false, want true")
+	}
+	if item.HasURI("http://example.com/other.mp4") {
+		t.Errorf("HasURI(other.mp4) = true, want false")
+	}
+
+	pInfo := item.Resources[0].ProtocolInfo
+	matchedURI, ok := item.URIForProtocolInfos([]ProtocolInfo{*pInfo})
+	if !ok || matchedURI != "http://example.com/movie.mp4" {
+		t.Errorf("URIForProtocolInfos = %v, %v, want http://example.com/movie.mp4, true", matchedURI, ok)
+	}
+
+	_, ok = item.URIForProtocolInfos([]ProtocolInfo{{Protocol: "rtsp", ContentFormat: "video/mp4"}})
+	if ok {
+		t.Errorf("URIForProtocolInfos with unmatched protocol expected false, got true")
 	}
 }

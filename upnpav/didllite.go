@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -7,7 +8,6 @@ package upnpav
 import (
 	"encoding/xml"
 	"fmt"
-	"net/url"
 
 	"github.com/ethulhu/helix/xmltypes"
 )
@@ -52,7 +52,7 @@ type (
 
 		Description     string   `xml:"http://purl.org/dc/elements/1.1/ description,omitempty"`
 		LongDescription string   `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ longDescription,omitempty"`
-		Icon            *url.URL `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ icon,omitempty"`
+		Icon            *URL     `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ icon,omitempty"`
 		Region          string   `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ region,omitempty"`
 		AgeRating       string   `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ rating,omitempty"`
 		Rights          []string `xml:"http://purl.org/dc/elements/1.1/ rights,omitempty"`
@@ -92,7 +92,7 @@ type (
 		Class           Class    `xml:"upnp:class,omitempty"`
 		Description     string   `xml:"dc:description,omitempty"`
 		LongDescription string   `xml:"upnp:longDescription,omitempty"`
-		Icon            *url.URL `xml:"upnp:icon,omitempty"`
+		Icon            *URL     `xml:"upnp:icon,omitempty"`
 		Region          string   `xml:"upnp:region,omitempty"`
 		AgeRating       string   `xml:"upnp:rating,omitempty"`
 		Rights          []string `xml:"dc:rights,omitempty"`
@@ -124,7 +124,7 @@ type (
 
 		Description     string   `xml:"http://purl.org/dc/elements/1.1/ description,omitempty"`
 		LongDescription string   `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ longDescription,omitempty"`
-		Icon            *url.URL `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ icon,omitempty"`
+		Icon            *URL     `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ icon,omitempty"`
 		Region          string   `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ region,omitempty"`
 		AgeRating       string   `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ rating,omitempty"`
 		Rights          []string `xml:"http://purl.org/dc/elements/1.1/ rights,omitempty"`
@@ -157,7 +157,7 @@ type (
 
 		// The following link to containers by the container title (e.g. object.container.playlist).
 		Genres    []string `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ genre,omitempty"`
-		Albums    []string `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ album",omitempty`
+		Albums    []string `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ album,omitempty"`
 		Playlists []string `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ playlist,omitempty"`
 
 		AlbumArtURIs         []string `xml:"urn:schemas-upnp-org:metadata-1-0/upnp/ albumArtURI,omitempty"`
@@ -182,7 +182,7 @@ type (
 		Class           Class    `xml:"upnp:class,omitempty"`
 		Description     string   `xml:"dc:description,omitempty"`
 		LongDescription string   `xml:"upnp:longDescription,omitempty"`
-		Icon            *url.URL `xml:"upnp:icon,omitempty"`
+		Icon            *URL     `xml:"upnp:icon,omitempty"`
 		Region          string   `xml:"upnp:region,omitempty"`
 		AgeRating       string   `xml:"upnp:rating,omitempty"`
 		Rights          []string `xml:"dc:rights,omitempty"`
@@ -203,7 +203,7 @@ type (
 		Publishers           []string   `xml:"dc:publisher,omitempty"`
 		Contributors         []string   `xml:"dc:contributor,omitempty"`
 		Genres               []string   `xml:"upnp:genre,omitempty"`
-		Albums               []string   `xml:"upnp:album",omitempty`
+		Albums               []string   `xml:"upnp:album,omitempty"`
 		Playlists            []string   `xml:"upnp:playlist,omitempty"`
 		AlbumArtURIs         []string   `xml:"upnp:albumArtURI,omitempty"`
 		ArtistDiscographyURI string     `xml:"upnp:artistDiscographyURI,omitempty"`
