@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2025-2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -171,6 +172,9 @@ func main() {
 				}
 				log.WithField("event", event.String()).Debug("got filesystem event")
 				cd.IncrementSystemUpdateID()
+				if err := device.NotifySubscribers(ctx, contentdirectory.Version1); err != nil {
+					log.WithError(err).Warning("could not notify event subscribers")
+				}
 				if err := upnp.SendUpdateNotification(ctx, device, url, iface); err != nil {
 					log.WithError(err).Warning("could not send update notification")
 				}

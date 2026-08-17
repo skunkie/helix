@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2025-2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -12,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/ethulhu/helix/logger"
@@ -55,8 +58,9 @@ type (
 		// bootID is a number that is updated when the device reboots.
 		bootID uint
 
-		mu           sync.RWMutex
-		serviceByURN map[URN]service
+		mu            sync.RWMutex
+		serviceByURN  map[URN]service
+		subscriptions map[string]eventSubscription
 	}
 
 	responseWriter struct {
@@ -98,7 +102,7 @@ func newDevice(manifestURL *url.URL, manifest ssdp.Document) (*Device, error) {
 	}
 
 	d.serviceByURN = map[URN]service{}
-	for _, s := range manifest.Device.Services {
+	for _, s := range manifest.Device.ServiceList.Services {
 		// TODO: get the actual SCPD.
 		serviceURL := *manifestURL
 		serviceURL.Path = s.ControlURL
@@ -163,7 +167,8 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 		log.AddField("http.method", r.Method)
 		log.AddField("http.path", r.URL.Path)
 
-		if r.URL.Path == "/" {
+		if isManifestRequest(r.URL.Path) {
+			w.Header().Set("Content-Type", `text/xml; charset="utf-8"`)
 			bytes, err := xml.Marshal(d.manifest(basePath))
 			if err != nil {
 				panic(fmt.Sprintf("could not marshal manifest: %v", err))
@@ -174,13 +179,10 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 			return
 		}
 
-		d.mu.RLock()
-		defer d.mu.RUnlock()
-
-		urn := URN(r.URL.Path[1:])
-		if service, ok := d.serviceByURN[urn]; ok {
+		if service, urn, ok := d.findService(r.URL.Path, r); ok {
 			switch r.Method {
 			case "GET":
+				w.Header().Set("Content-Type", `text/xml; charset="utf-8"`)
 				bytes, err := xml.Marshal(service.SCPD)
 				if err != nil {
 					panic(fmt.Sprintf("could not marshal SCPD for %v: %v", urn, err))
@@ -207,12 +209,56 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 
 				log.WithField("body", rw.String()).Debug("SOAP response")
 				return
+
+			case "SUBSCRIBE":
+				d.handleSubscribe(w, r, urn)
+				return
+
+			case "UNSUBSCRIBE":
+				d.handleUnsubscribe(w, r, urn)
+				return
 			}
 		}
 
 		log.Warning("not found")
 		http.NotFound(w, r)
 	})
+}
+
+func (d *Device) findService(reqPath string, r *http.Request) (service, URN, bool) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	cleanPath, _ := url.PathUnescape(strings.TrimPrefix(reqPath, "/"))
+	cleanPath = strings.TrimPrefix(cleanPath, "/")
+
+	// 1. Direct URN match
+	if s, ok := d.serviceByURN[URN(cleanPath)]; ok {
+		return s, URN(cleanPath), true
+	}
+
+	// 2. By ServiceID or suffix
+	for urn, s := range d.serviceByURN {
+		if string(s.ID) == cleanPath || strings.HasSuffix(string(s.ID), ":"+cleanPath) || strings.EqualFold(string(s.ID), cleanPath) {
+			return s, urn, true
+		}
+		if strings.HasSuffix(string(urn), ":"+cleanPath) || strings.HasSuffix(string(urn), cleanPath) {
+			return s, urn, true
+		}
+	}
+
+	// 3. For SOAP POST requests, extract service URN from SOAPAction header
+	if soapAction := r.Header.Get("SOAPAction"); soapAction != "" {
+		soapAction = strings.Trim(soapAction, `"`)
+		if hashIdx := strings.LastIndex(soapAction, "#"); hashIdx != -1 {
+			serviceURN := URN(soapAction[:hashIdx])
+			if s, ok := d.serviceByURN[serviceURN]; ok {
+				return s, serviceURN, true
+			}
+		}
+	}
+
+	return service{}, "", false
 }
 
 func (d *Device) manifest(basePath string) ssdp.Document {
@@ -233,18 +279,26 @@ func (d *Device) manifest(basePath string) ssdp.Document {
 			ModelURL:         d.ModelURL,
 			SerialNumber:     d.SerialNumber,
 
+			DLNACAP: &ssdp.DLNACAP{},
+			DLNADOC: []string{"DMS-1.50", "M-DMS-1.50"},
+			SecCap:  "smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec",
+			XSecCap: "smi,DCM10,getMediaInfo.sec,getCaptionInfo.sec",
+
 			PresentationURL: d.PresentationURL,
 		},
 	}
 
-	for _, icon := range d.Icons {
-		doc.Device.Icons = append(doc.Device.Icons, icon.ssdpIcon())
+	if len(d.Icons) > 0 {
+		doc.Device.IconList = &ssdp.IconList{}
+		for _, icon := range d.Icons {
+			doc.Device.IconList.Icons = append(doc.Device.IconList.Icons, icon.ssdpIcon())
+		}
 	}
 
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	for urn, service := range d.serviceByURN {
-		doc.Device.Services = append(doc.Device.Services, ssdp.Service{
+		doc.Device.ServiceList.Services = append(doc.Device.ServiceList.Services, ssdp.Service{
 			ServiceType: string(urn),
 			ServiceID:   string(service.ID),
 			SCPDURL:     path.Join(basePath, string(urn)),
@@ -252,6 +306,9 @@ func (d *Device) manifest(basePath string) ssdp.Document {
 			EventSubURL: path.Join(basePath, string(urn)),
 		})
 	}
+	sort.Slice(doc.Device.ServiceList.Services, func(i, j int) bool {
+		return doc.Device.ServiceList.Services[i].ServiceType < doc.Device.ServiceList.Services[j].ServiceType
+	})
 
 	return doc
 }
@@ -290,4 +347,14 @@ func (d *Device) IncrementBootID() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.bootID++
+}
+
+func isManifestRequest(reqPath string) bool {
+	clean := strings.Trim(strings.ToLower(reqPath), "/")
+	switch clean {
+	case "", "description.xml", "rootdesc.xml", "desc.xml", "device.xml":
+		return true
+	default:
+		return false
+	}
 }

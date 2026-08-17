@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -39,10 +40,25 @@ type (
 		SerialNumber     string `xml:"serialNumber,omitempty"`
 		UDN              string `xml:"UDN,omitempty"`
 
-		Devices         []Device  `xml:"deviceList>device"`
-		Icons           []Icon    `xml:"iconList>icon"`
-		Services        []Service `xml:"serviceList>service"`
-		PresentationURL string    `xml:"presentationURL,omitempty"`
+		DLNACAP *DLNACAP `xml:"dlna:X_DLNACAP,omitempty"`
+		DLNADOC []string `xml:"dlna:X_DLNADOC,omitempty"`
+		SecCap  string   `xml:"sec:ProductCap,omitempty"`
+		XSecCap string   `xml:"sec:X_ProductCap,omitempty"`
+
+		DeviceList      *DeviceList `xml:"deviceList,omitempty"`
+		IconList        *IconList   `xml:"iconList,omitempty"`
+		ServiceList     ServiceList `xml:"serviceList"`
+		PresentationURL string      `xml:"presentationURL,omitempty"`
+	}
+	DLNACAP    struct{}
+	DeviceList struct {
+		Devices []Device `xml:"device"`
+	}
+	IconList struct {
+		Icons []Icon `xml:"icon"`
+	}
+	ServiceList struct {
+		Services []Service `xml:"service"`
 	}
 	Icon struct {
 		MIMEType string `xml:"mimetype"`

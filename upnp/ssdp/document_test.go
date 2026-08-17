@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -17,8 +18,8 @@ func TestMarshal(t *testing.T) {
 	}{
 		{
 			manifest: Document{
-				NSDLNA:      "urn:schemas-dlna-org:device-1-0",
-				NSSEC:       "http://www.sec.co.kr/dlna",
+				NSDLNA: "urn:schemas-dlna-org:device-1-0",
+				NSSEC:  "http://www.sec.co.kr/dlna",
 				SpecVersion: SpecVersion{
 					Major: 1,
 					Minor: 2,
@@ -26,6 +27,7 @@ func TestMarshal(t *testing.T) {
 				Device: Device{
 					DeviceType:   "foo",
 					FriendlyName: "Foo (bar)",
+					ServiceList:  ServiceList{},
 				},
 			},
 			want: `<root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:dlna="urn:schemas-dlna-org:device-1-0" xmlns:sec="http://www.sec.co.kr/dlna">
@@ -36,8 +38,31 @@ func TestMarshal(t *testing.T) {
   <device>
     <deviceType>foo</deviceType>
     <friendlyName>Foo (bar)</friendlyName>
-    <deviceList></deviceList>
-    <iconList></iconList>
+    <serviceList></serviceList>
+  </device>
+</root>`,
+		},
+		{
+			manifest: Document{
+				NSDLNA:      "urn:schemas-dlna-org:device-1-0",
+				NSSEC:       "http://www.sec.co.kr/dlna",
+				SpecVersion: SpecVersion{Major: 1, Minor: 0},
+				Device: Device{
+					FriendlyName: "test",
+					DLNACAP:      &DLNACAP{},
+					DLNADOC:      []string{"DMS-1.50"},
+					ServiceList:  ServiceList{},
+				},
+			},
+			want: `<root xmlns="urn:schemas-upnp-org:device-1-0" xmlns:dlna="urn:schemas-dlna-org:device-1-0" xmlns:sec="http://www.sec.co.kr/dlna">
+  <specVersion>
+    <major>1</major>
+    <minor>0</minor>
+  </specVersion>
+  <device>
+    <friendlyName>test</friendlyName>
+    <dlna:X_DLNACAP></dlna:X_DLNACAP>
+    <dlna:X_DLNADOC>DMS-1.50</dlna:X_DLNADOC>
     <serviceList></serviceList>
   </device>
 </root>`,
@@ -119,20 +144,22 @@ func TestUnmarshal(t *testing.T) {
 					ModelURL:         "https://framagit.org/medoc92/upmpdcli/code/",
 					SerialNumber:     "2020.05",
 					PresentationURL:  "foo",
-					Services: []Service{
-						{
-							ServiceType: "urn:schemas-upnp-org:service:AVTransport:1",
-							ServiceID:   "urn:upnp-org:serviceId:AVTransport",
-							SCPDURL:     "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/urn-schemas-upnp-org-service-AVTransport-1.xml",
-							ControlURL:  "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/ctl-urn-schemas-upnp-org-service-AVTransport-1",
-							EventSubURL: "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/evt-urn-schemas-upnp-org-service-AVTransport-1",
-						},
-						{
-							ServiceType: "urn:schemas-upnp-org:service:RenderingControl:1",
-							ServiceID:   "urn:upnp-org:serviceId:RenderingControl",
-							SCPDURL:     "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/urn-schemas-upnp-org-service-RenderingControl-1.xml",
-							ControlURL:  "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/ctl-urn-schemas-upnp-org-service-RenderingControl-1",
-							EventSubURL: "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/evt-urn-schemas-upnp-org-service-RenderingControl-1",
+					ServiceList: ServiceList{
+						Services: []Service{
+							{
+								ServiceType: "urn:schemas-upnp-org:service:AVTransport:1",
+								ServiceID:   "urn:upnp-org:serviceId:AVTransport",
+								SCPDURL:     "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/urn-schemas-upnp-org-service-AVTransport-1.xml",
+								ControlURL:  "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/ctl-urn-schemas-upnp-org-service-AVTransport-1",
+								EventSubURL: "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/evt-urn-schemas-upnp-org-service-AVTransport-1",
+							},
+							{
+								ServiceType: "urn:schemas-upnp-org:service:RenderingControl:1",
+								ServiceID:   "urn:upnp-org:serviceId:RenderingControl",
+								SCPDURL:     "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/urn-schemas-upnp-org-service-RenderingControl-1.xml",
+								ControlURL:  "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/ctl-urn-schemas-upnp-org-service-RenderingControl-1",
+								EventSubURL: "/uuid-42f18105-7062-617c-5225-bc5ff4ed7a1e/evt-urn-schemas-upnp-org-service-RenderingControl-1",
+							},
 						},
 					},
 				},

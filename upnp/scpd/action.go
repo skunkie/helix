@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -9,7 +10,18 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/ethulhu/helix/xmltypes"
 )
+
+func isEventedVariable(name string) bool {
+	switch name {
+	case "SystemUpdateID", "ContainerUpdateIDs", "TransferIDs", "SourceProtocolInfo", "SinkProtocolInfo", "CurrentConnectionIDs", "LastChange":
+		return true
+	default:
+		return false
+	}
+}
 
 func FromAction(name string, req, rsp interface{}) (Document, error) {
 	inArgs, inVars, err := argumentsAndVariables(req, In)
@@ -61,9 +73,14 @@ func argumentsAndVariables(obj interface{}, d Direction) ([]Argument, []StateVar
 			Direction:            d,
 			RelatedStateVariable: parts[0],
 		}
+		sendEvents := xmltypes.No
+		if isEventedVariable(parts[0]) {
+			sendEvents = xmltypes.Yes
+		}
 		sv := StateVariable{
-			Name:     parts[0],
-			DataType: parts[1],
+			SendEventsAttribute: sendEvents,
+			Name:                parts[0],
+			DataType:            parts[1],
 		}
 
 		if parts[1] == "string" && len(parts) == 3 {
