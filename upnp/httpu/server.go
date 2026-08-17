@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -8,10 +9,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"sort"
+	"sync"
+	"sync/atomic"
 
 	"github.com/ethulhu/helix/logger"
 )
@@ -19,7 +23,9 @@ import (
 type (
 	Server struct {
 		Handler func(*http.Request) []Response
+		mu      sync.RWMutex
 		conn    net.PacketConn
+		running atomic.Bool
 	}
 
 	Response map[string]string
@@ -47,15 +53,34 @@ func (r Response) Bytes() []byte {
 }
 
 func (s *Server) Close() error {
-	return s.conn.Close()
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+	if conn == nil {
+		return nil
+	}
+	return conn.Close()
 }
 
 func (s *Server) Serve(conn net.PacketConn) error {
 	packet := make([]byte, 2048)
+	s.mu.Lock()
+	if s.running.Load() {
+		s.mu.Unlock()
+		return errors.New("HTTPU server is already running")
+	}
 	s.conn = conn
+	s.running.Store(true)
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		s.conn = nil
+		s.running.Store(false)
+		s.mu.Unlock()
+	}()
 Loop:
 	for {
-		n, addr, err := s.conn.ReadFrom(packet)
+		n, addr, err := conn.ReadFrom(packet)
 		if err != nil {
 			return fmt.Errorf("could not receive HTTPU packet: %w", err)
 		}
@@ -79,7 +104,7 @@ Loop:
 		}
 
 		for _, rsp := range rsps {
-			if _, err := s.conn.WriteTo(rsp.Bytes(), addr); err != nil {
+			if _, err := conn.WriteTo(rsp.Bytes(), addr); err != nil {
 				log.WithError(err).Warning("could not send HTTPU response")
 				continue Loop
 			}
@@ -90,5 +115,5 @@ Loop:
 }
 
 func (s *Server) Running() bool {
-	return s.conn != nil
+	return s.running.Load()
 }
