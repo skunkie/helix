@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -41,4 +42,30 @@ func (c *client) ProtocolInfo(ctx context.Context) ([]upnpav.ProtocolInfo, []upn
 		return nil, nil, err
 	}
 	return rsp.Sources, rsp.Sinks, nil
+}
+
+func (c *client) CurrentConnectionIDs(ctx context.Context) ([]int, error) {
+	req := getCurrentConnectionIDsRequest{}
+	rsp := getCurrentConnectionIDsResponse{}
+	if err := c.call(ctx, getCurrentConnectionIDs, req, &rsp); err != nil {
+		return nil, err
+	}
+	return []int(rsp.ConnectionIDs), nil
+}
+
+func (c *client) CurrentConnectionInfo(ctx context.Context, connectionID int) (*ConnectionInfo, error) {
+	req := getCurrentConnectionInfoRequest{ConnectionID: connectionID}
+	rsp := getCurrentConnectionInfoResponse{}
+	if err := c.call(ctx, getCurrentConnectionInfo, req, &rsp); err != nil {
+		return nil, err
+	}
+	return &ConnectionInfo{
+		RcsID:                 rsp.RcsID,
+		AVTransportID:         rsp.AVTransportID,
+		ProtocolInfo:          rsp.ProtocolInfo,
+		PeerConnectionManager: rsp.PeerConnectionManager,
+		PeerConnectionID:      rsp.PeerConnectionID,
+		Direction:             Direction(rsp.Direction),
+		Status:                Status(rsp.Status),
+	}, nil
 }

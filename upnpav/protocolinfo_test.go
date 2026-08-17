@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -129,5 +130,33 @@ func TestProtocolInfoForURI(t *testing.T) {
 		if !reflect.DeepEqual(tt.want, got) {
 			t.Errorf("[%d]: expected result %v, got %v", i, tt.want, got)
 		}
+	}
+}
+
+func TestProtocolInfoMarshalUnmarshal(t *testing.T) {
+	p := ProtocolInfo{
+		Protocol:       ProtocolHTTP,
+		Network:        "*",
+		ContentFormat:  "video/mp4",
+		AdditionalInfo: "DLNA.ORG_OP=01",
+	}
+
+	bytes, err := p.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText error: %v", err)
+	}
+
+	var unmarshaled ProtocolInfo
+	if err := unmarshaled.UnmarshalText(bytes); err != nil {
+		t.Fatalf("UnmarshalText error: %v", err)
+	}
+
+	if !reflect.DeepEqual(p, unmarshaled) {
+		t.Errorf("unmarshaled = %v, want %v", unmarshaled, p)
+	}
+
+	var bad ProtocolInfo
+	if err := bad.UnmarshalText([]byte("invalid")); err == nil {
+		t.Errorf("expected error unmarshaling invalid protocolInfo, got nil")
 	}
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/ethulhu/helix/upnpav/connectionmanager"
 	"github.com/ethulhu/helix/upnpav/contentdirectory"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/fileserver"
+	"github.com/ethulhu/helix/upnpav/mediareceiverregistrar"
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -125,7 +126,8 @@ func main() {
 	}
 
 	device.Handle(contentdirectory.Version1, contentdirectory.ServiceID, contentdirectory.SCPD, contentdirectory.SOAPHandler{Interface: cd})
-	device.Handle(connectionmanager.Version1, connectionmanager.ServiceID, connectionmanager.SCPD, nil)
+	device.Handle(connectionmanager.Version1, connectionmanager.ServiceID, connectionmanager.SCPD, connectionmanager.SOAPHandler{Interface: connectionmanager.NewServer(nil, nil)})
+	device.Handle(mediareceiverregistrar.Version1, mediareceiverregistrar.ServiceID, mediareceiverregistrar.SCPD, mediareceiverregistrar.SOAPHandler{Interface: mediareceiverregistrar.NewServer()})
 
 	mux := http.NewServeMux()
 

@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2025 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -24,6 +25,7 @@ import (
 	"github.com/ethulhu/helix/upnpav/connectionmanager"
 	"github.com/ethulhu/helix/upnpav/contentdirectory"
 	"github.com/ethulhu/helix/upnpav/contentdirectory/jackalope"
+	"github.com/ethulhu/helix/upnpav/mediareceiverregistrar"
 
 	jackalopeDB "go.eth.moe/jackalope"
 )
@@ -102,8 +104,9 @@ func main() {
 		log.WithError(err).Fatal("could not create ContentDirectory object")
 	}
 
-	device.Handle(contentdirectory.Version1, contentdirectory.ServiceID, contentdirectory.SCPD, contentdirectory.SOAPHandler{cd})
-	device.Handle(connectionmanager.Version1, connectionmanager.ServiceID, connectionmanager.SCPD, nil)
+	device.Handle(contentdirectory.Version1, contentdirectory.ServiceID, contentdirectory.SCPD, contentdirectory.SOAPHandler{Interface: cd})
+	device.Handle(connectionmanager.Version1, connectionmanager.ServiceID, connectionmanager.SCPD, connectionmanager.SOAPHandler{Interface: connectionmanager.NewServer(nil, nil)})
+	device.Handle(mediareceiverregistrar.Version1, mediareceiverregistrar.ServiceID, mediareceiverregistrar.SCPD, mediareceiverregistrar.SOAPHandler{Interface: mediareceiverregistrar.NewServer()})
 
 	mux := http.NewServeMux()
 	mux.Handle("/objects/", http.StripPrefix("/objects/", http.FileServer(http.Dir(basePath))))

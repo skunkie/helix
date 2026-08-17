@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -11,9 +12,27 @@ import (
 )
 
 func init() {
-	_ = mime.AddExtensionType(".mp3", "audio/mpeg")
-	_ = mime.AddExtensionType(".mp4", "video/mp4")
-	_ = mime.AddExtensionType(".mkv", "video/x-matroska")
+	types := map[string]string{
+		".aac":  "audio/aac",
+		".avi":  "video/x-msvideo",
+		".flac": "audio/flac",
+		".flv":  "video/x-flv",
+		".m2ts": "video/mp2t",
+		".m4a":  "audio/mp4",
+		".m4v":  "video/mp4",
+		".mkv":  "video/x-matroska",
+		".mov":  "video/quicktime",
+		".mp3":  "audio/mpeg",
+		".mp4":  "video/mp4",
+		".ogg":  "audio/ogg",
+		".ts":   "video/mp2t",
+		".wav":  "audio/wav",
+		".webm": "video/webm",
+		".wmv":  "video/x-ms-wmv",
+	}
+	for ext, mimeType := range types {
+		_ = mime.AddExtensionType(ext, mimeType)
+	}
 }
 
 func IsAudioOrVideo(p string) bool {
