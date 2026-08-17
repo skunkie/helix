@@ -32,15 +32,15 @@ type (
 	}
 
 	StateVariable struct {
+		SendEventsAttribute xmltypes.YesNoBool `xml:"sendEvents,attr"`
 		Name                string             `xml:"name"`
-		SendEventsAttribute xmltypes.YesNoBool `xml:"sendEventsAttribute"`
 		DataType            string             `xml:"dataType"`
 		AllowedValues       *AllowedValues     `xml:"allowedValueList,omitempty"`
 		AllowedValueRange   *AllowedValueRange `xml:"allowedValueRange,omitempty"`
 	}
 
 	AllowedValues struct {
-		Values []string `xml:"allowedValues"`
+		Values []string `xml:"allowedValue"`
 	}
 	AllowedValueRange struct {
 		Minimum int `xml:"minimum"`

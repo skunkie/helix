@@ -78,18 +78,16 @@ func TestMarshal(t *testing.T) {
     <minor>1</minor>
   </specVersion>
   <serviceStateTable>
-    <stateVariable>
+    <stateVariable sendEvents="no">
       <name>TransportState</name>
-      <sendEventsAttribute>no</sendEventsAttribute>
       <dataType>string</dataType>
       <allowedValueList>
-        <allowedValues>STOPPED</allowedValues>
-        <allowedValues>PLAYING</allowedValues>
+        <allowedValue>STOPPED</allowedValue>
+        <allowedValue>PLAYING</allowedValue>
       </allowedValueList>
     </stateVariable>
-    <stateVariable>
+    <stateVariable sendEvents="yes">
       <name>NumberOfTracks</name>
-      <sendEventsAttribute>yes</sendEventsAttribute>
       <dataType>ui4</dataType>
       <allowedValueRange>
         <minimum>0</minimum>
@@ -97,9 +95,8 @@ func TestMarshal(t *testing.T) {
         <step>1</step>
       </allowedValueRange>
     </stateVariable>
-    <stateVariable>
+    <stateVariable sendEvents="yes">
       <name>TrackCount</name>
-      <sendEventsAttribute>yes</sendEventsAttribute>
       <dataType>ui4</dataType>
       <allowedValueRange>
         <minimum>0</minimum>
@@ -152,18 +149,16 @@ func TestUnmarshal(t *testing.T) {
     <minor>1</minor>
   </specVersion>
   <serviceStateTable>
-    <stateVariable>
+    <stateVariable sendEvents="no">
       <name>TransportState</name>
-      <sendEventsAttribute>no</sendEventsAttribute>
       <dataType>string</dataType>
       <allowedValueList>
-        <allowedValues>STOPPED</allowedValues>
-        <allowedValues>PLAYING</allowedValues>
+        <allowedValue>STOPPED</allowedValue>
+        <allowedValue>PLAYING</allowedValue>
       </allowedValueList>
     </stateVariable>
-    <stateVariable>
+    <stateVariable sendEvents="yes">
       <name>NumberOfTracks</name>
-      <sendEventsAttribute>yes</sendEventsAttribute>
       <dataType>ui4</dataType>
       <allowedValueRange>
         <minimum>0</minimum>
