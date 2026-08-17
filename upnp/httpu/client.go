@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2025-2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -12,17 +13,30 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/ethulhu/helix/logger"
+	"golang.org/x/net/ipv4"
 )
 
-// serializeRequest is a hack because many devices require allcaps headers.
-func serializeRequest(req *http.Request) []byte {
+// SerializeRequest serializes an SSDP request with uppercase header keys.
+func SerializeRequest(req *http.Request) []byte {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%v %v HTTP/1.1\r\n", req.Method, req.URL.RequestURI())
 	fmt.Fprintf(&buf, "HOST: %v\r\n", req.Host)
-	req.Header.Write(&buf)
+	var keys []string
+	for k := range req.Header {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		upperK := strings.ToUpper(k)
+		for _, v := range req.Header[k] {
+			fmt.Fprintf(&buf, "%s: %s\r\n", upperK, v)
+		}
+	}
 	fmt.Fprint(&buf, "\r\n")
 	return buf.Bytes()
 }
@@ -61,6 +75,12 @@ func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response,
 	}
 	defer conn.Close()
 
+	if iface != nil {
+		p := ipv4.NewPacketConn(conn)
+		_ = p.SetMulticastInterface(iface)
+		_ = p.SetMulticastTTL(2)
+	}
+
 	if deadline, ok := req.Context().Deadline(); ok {
 		conn.SetDeadline(deadline)
 	}
@@ -70,7 +90,7 @@ func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response,
 		return nil, nil, fmt.Errorf("could not resolve %v to host:port: %w", req.Host, err)
 	}
 
-	packet := serializeRequest(req)
+	packet := SerializeRequest(req)
 
 	for i := 0; i < repeats; i++ {
 		if _, err := conn.WriteTo(packet, addr); err != nil {
@@ -126,6 +146,12 @@ func Send(req *http.Request, repeats int, iface *net.Interface) error {
 	}
 	defer conn.Close()
 
+	if iface != nil {
+		p := ipv4.NewPacketConn(conn)
+		_ = p.SetMulticastInterface(iface)
+		_ = p.SetMulticastTTL(2)
+	}
+
 	if deadline, ok := req.Context().Deadline(); ok {
 		conn.SetDeadline(deadline)
 	}
@@ -135,7 +161,7 @@ func Send(req *http.Request, repeats int, iface *net.Interface) error {
 		return fmt.Errorf("could not resolve %v to host:port: %w", req.Host, err)
 	}
 
-	packet := serializeRequest(req)
+	packet := SerializeRequest(req)
 
 	for i := 0; i < repeats; i++ {
 		if _, err := conn.WriteTo(packet, addr); err != nil {

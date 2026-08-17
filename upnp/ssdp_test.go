@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2025-2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -44,7 +45,16 @@ func TestHandleDiscover(t *testing.T) {
 					"CACHE-CONTROL":   ssdpCacheControl,
 					"EXT":             "",
 					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
+					"SERVER":          "Linux/3.x UPnP/1.0 /1.0",
+					"ST":              "upnp:rootdevice",
+					"USN":             "device-id::upnp:rootdevice",
+					"BOOTID.UPNP.ORG": "123",
+				},
+				{
+					"CACHE-CONTROL":   ssdpCacheControl,
+					"EXT":             "",
+					"LOCATION":        "http://1.2.3.4:8000/",
+					"SERVER":          "Linux/3.x UPnP/1.0 /1.0",
 					"ST":              "device-id",
 					"USN":             "device-id",
 					"BOOTID.UPNP.ORG": "123",
@@ -53,18 +63,9 @@ func TestHandleDiscover(t *testing.T) {
 					"CACHE-CONTROL":   ssdpCacheControl,
 					"EXT":             "",
 					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
+					"SERVER":          "Linux/3.x UPnP/1.0 /1.0",
 					"ST":              "device-type",
 					"USN":             "device-id::device-type",
-					"BOOTID.UPNP.ORG": "123",
-				},
-				{
-					"CACHE-CONTROL":   ssdpCacheControl,
-					"EXT":             "",
-					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
-					"ST":              "upnp:rootdevice",
-					"USN":             "device-id::upnp:rootdevice",
 					"BOOTID.UPNP.ORG": "123",
 				},
 			},
@@ -91,27 +92,9 @@ func TestHandleDiscover(t *testing.T) {
 					"CACHE-CONTROL":   ssdpCacheControl,
 					"EXT":             "",
 					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
-					"ST":              "device-id",
-					"USN":             "device-id",
-					"BOOTID.UPNP.ORG": "123",
-				},
-				{
-					"CACHE-CONTROL":   ssdpCacheControl,
-					"EXT":             "",
-					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
+					"SERVER":          "Linux/3.x UPnP/1.0 /1.0",
 					"ST":              "device-type",
 					"USN":             "device-id::device-type",
-					"BOOTID.UPNP.ORG": "123",
-				},
-				{
-					"CACHE-CONTROL":   ssdpCacheControl,
-					"EXT":             "",
-					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
-					"ST":              "upnp:rootdevice",
-					"USN":             "device-id::upnp:rootdevice",
 					"BOOTID.UPNP.ORG": "123",
 				},
 			},
@@ -141,36 +124,9 @@ func TestHandleDiscover(t *testing.T) {
 					"CACHE-CONTROL":   ssdpCacheControl,
 					"EXT":             "",
 					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
-					"ST":              "device-id",
-					"USN":             "device-id",
-					"BOOTID.UPNP.ORG": "123",
-				},
-				{
-					"CACHE-CONTROL":   ssdpCacheControl,
-					"EXT":             "",
-					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
+					"SERVER":          "Linux/3.x UPnP/1.0 /1.0",
 					"ST":              "service-urn",
 					"USN":             "device-id::service-urn",
-					"BOOTID.UPNP.ORG": "123",
-				},
-				{
-					"CACHE-CONTROL":   ssdpCacheControl,
-					"EXT":             "",
-					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
-					"ST":              "device-type",
-					"USN":             "device-id::device-type",
-					"BOOTID.UPNP.ORG": "123",
-				},
-				{
-					"CACHE-CONTROL":   ssdpCacheControl,
-					"EXT":             "",
-					"LOCATION":        "http://1.2.3.4:8000/",
-					"SERVER":          " ",
-					"ST":              "upnp:rootdevice",
-					"USN":             "device-id::upnp:rootdevice",
 					"BOOTID.UPNP.ORG": "123",
 				},
 			},
@@ -251,19 +207,55 @@ func TestNotifyByeByeRequests(t *testing.T) {
 
 	reqs := notifyByeByeRequests(context.Background(), device)
 
-	want := []*http.Request{}
-	for _, urn := range []URN{"service-urn", "device-type", "upnp:rootdevice"} {
-		header := http.Header{
-			"Nt":              {string(urn)},
-			"Nts":             {notifyByeBye},
-			"Usn":             {"device-id::" + string(urn)},
-			"BootID.upnp.org": {"123"},
-		}
-		req, _ := http.NewRequest(notifyMethod, "", nil)
-		req.URL = discoverURL
-		req.Host = ssdpBroadcastAddr.String()
-		req.Header = header
-		want = append(want, req)
+	want := []*http.Request{
+		func() *http.Request {
+			req, _ := http.NewRequest(notifyMethod, "", nil)
+			req.URL = discoverURL
+			req.Host = ssdpBroadcastAddr.String()
+			req.Header = http.Header{
+				"Nt":              {"upnp:rootdevice"},
+				"Nts":             {notifyByeBye},
+				"Usn":             {"device-id::upnp:rootdevice"},
+				"BootID.upnp.org": {"123"},
+			}
+			return req
+		}(),
+		func() *http.Request {
+			req, _ := http.NewRequest(notifyMethod, "", nil)
+			req.URL = discoverURL
+			req.Host = ssdpBroadcastAddr.String()
+			req.Header = http.Header{
+				"Nt":              {"device-id"},
+				"Nts":             {notifyByeBye},
+				"Usn":             {"device-id"},
+				"BootID.upnp.org": {"123"},
+			}
+			return req
+		}(),
+		func() *http.Request {
+			req, _ := http.NewRequest(notifyMethod, "", nil)
+			req.URL = discoverURL
+			req.Host = ssdpBroadcastAddr.String()
+			req.Header = http.Header{
+				"Nt":              {"device-type"},
+				"Nts":             {notifyByeBye},
+				"Usn":             {"device-id::device-type"},
+				"BootID.upnp.org": {"123"},
+			}
+			return req
+		}(),
+		func() *http.Request {
+			req, _ := http.NewRequest(notifyMethod, "", nil)
+			req.URL = discoverURL
+			req.Host = ssdpBroadcastAddr.String()
+			req.Header = http.Header{
+				"Nt":              {"service-urn"},
+				"Nts":             {notifyByeBye},
+				"Usn":             {"device-id::service-urn"},
+				"BootID.upnp.org": {"123"},
+			}
+			return req
+		}(),
 	}
 
 	if len(reqs) != len(want) {

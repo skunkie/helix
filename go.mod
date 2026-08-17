@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/sirupsen/logrus v1.9.4
 	go.eth.moe/jackalope v0.0.0-20200609154611-6506eb0b162c
+	golang.org/x/net v0.49.0
 )
 
 require (
