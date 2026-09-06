@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -229,12 +230,8 @@ func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.Obje
 	}
 	didllite.Items = items
 
-	for _, criteria := range sortCriteria {
-		if criteria == "dc:title" {
-			sort.SliceStable(didllite.Items, func(i, j int) bool {
-				return didllite.Items[i].Title < didllite.Items[j].Title
-			})
-		}
+	if err := sortDIDLLite(didllite, sortCriteria); err != nil {
+		return nil, 0, err
 	}
 
 	totalMatches := uint(len(didllite.Containers) + len(didllite.Items))
@@ -273,7 +270,7 @@ func (cd *ContentDirectory) Search(ctx context.Context, id upnpav.ObjectID, crit
 		}
 
 		items, err := cd.itemsForPaths(p)
-		if err != nil {
+		if err != nil || len(items) == 0 {
 			return nil
 		}
 		item := items[0]
@@ -291,19 +288,8 @@ func (cd *ContentDirectory) Search(ctx context.Context, id upnpav.ObjectID, crit
 	if err := filepath.Walk(p, walkFn); err != nil {
 		return nil, 0, err
 	}
-	for i := len(sortCriteria) - 1; i >= 0; i-- {
-		criterion := sortCriteria[i]
-		descending := strings.HasPrefix(criterion, "-")
-		property := strings.TrimPrefix(strings.TrimPrefix(criterion, "+"), "-")
-		if property != "dc:title" {
-			return nil, 0, contentdirectory.ErrInvalidSortCriteria
-		}
-		sort.SliceStable(results.Items, func(i, j int) bool {
-			if descending {
-				return results.Items[i].Title > results.Items[j].Title
-			}
-			return results.Items[i].Title < results.Items[j].Title
-		})
+	if err := sortDIDLLite(results, sortCriteria); err != nil {
+		return nil, 0, err
 	}
 
 	totalMatches := uint(len(results.Containers) + len(results.Items))
@@ -340,6 +326,9 @@ func (cd *ContentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error
 
 	titles := make([]string, len(metadatas))
 	for i, md := range metadatas {
+		if md == nil {
+			continue
+		}
 		titles[i] = md.Title
 	}
 	titles = trimCommonPrefix(titles)
@@ -347,6 +336,9 @@ func (cd *ContentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error
 	var items []upnpav.Item
 	for i, p := range paths {
 		md := metadatas[i]
+		if md == nil {
+			continue
+		}
 
 		class, err := upnpav.ClassForMIMEType(md.MIMEType)
 		if err != nil {
@@ -380,12 +372,36 @@ func (cd *ContentDirectory) itemsForPaths(paths ...string) ([]upnpav.Item, error
 	return items, nil
 }
 
+func sortDIDLLite(didllite *upnpav.DIDLLite, criteria xmltypes.CommaSeparatedStrings) error {
+	for _, criterion := range slices.Backward(criteria) {
+		descending := strings.HasPrefix(criterion, "-")
+		property := strings.TrimPrefix(strings.TrimPrefix(criterion, "+"), "-")
+		if property != "dc:title" {
+			return contentdirectory.ErrInvalidSortCriteria
+		}
+
+		less := func(left, right string) bool {
+			if descending {
+				return left > right
+			}
+			return left < right
+		}
+		sort.SliceStable(didllite.Containers, func(i, j int) bool {
+			return less(didllite.Containers[i].Title, didllite.Containers[j].Title)
+		})
+		sort.SliceStable(didllite.Items, func(i, j int) bool {
+			return less(didllite.Items[i].Title, didllite.Items[j].Title)
+		})
+	}
+	return nil
+}
+
 func (cd *ContentDirectory) uri(p string) string {
 	uri := *cd.baseURL
 	relPath, _ := filepath.Rel(cd.basePath, p)
 	uri.Path = path.Join(uri.Path, relPath)
 	// TODO: figure out what's actually going wrong here.
-	return strings.Replace((&uri).String(), "&", "%26", -1)
+	return strings.ReplaceAll((&uri).String(), "&", "%26")
 }
 
 func trimCommonPrefix(ss []string) []string {

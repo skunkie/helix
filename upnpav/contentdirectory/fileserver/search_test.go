@@ -23,6 +23,12 @@ import (
 
 type mockMetadataCache struct{}
 
+type nilMetadataCache struct{ mockMetadataCache }
+
+func (*nilMetadataCache) MetadataForPaths(paths []string) []*media.Metadata {
+	return make([]*media.Metadata, len(paths))
+}
+
 func (m *mockMetadataCache) MetadataForPath(p string) (*media.Metadata, error) {
 	fileName := filepath.Base(p)
 	var mimeType string
@@ -79,6 +85,61 @@ func TestSearchSortsBeforePagination(t *testing.T) {
 	}
 }
 
+func TestBrowseChildrenSortsSupportedObjects(t *testing.T) {
+	tmpdir := t.TempDir()
+	for _, directory := range []string{"charlie", "alpha"} {
+		if err := os.Mkdir(filepath.Join(tmpdir, directory), 0755); err != nil {
+			t.Fatalf("creating directory: %v", err)
+		}
+	}
+	for _, file := range []string{"delta.mp3", "bravo.mp3"} {
+		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0644); err != nil {
+			t.Fatalf("creating dummy file: %v", err)
+		}
+	}
+
+	baseURL, err := url.Parse("http://localhost/")
+	if err != nil {
+		t.Fatalf("parsing base URL: %v", err)
+	}
+	cd := &ContentDirectory{basePath: tmpdir, baseURL: baseURL, metadataCache: &mockMetadataCache{}}
+
+	result, total, err := cd.BrowseChildren(context.Background(), contentdirectory.Root, 0, 0, xmltypes.CommaSeparatedStrings{"+dc:title"})
+	if err != nil {
+		t.Fatalf("BrowseChildren failed: %v", err)
+	}
+	if total != 4 {
+		t.Fatalf("total = %d, want 4", total)
+	}
+	if got := []string{result.Containers[0].Title, result.Containers[1].Title}; !reflect.DeepEqual(got, []string{"alpha", "charlie"}) {
+		t.Fatalf("container titles = %v", got)
+	}
+	if got := []string{result.Items[0].Title, result.Items[1].Title}; !reflect.DeepEqual(got, []string{"bravo.mp3", "delta.mp3"}) {
+		t.Fatalf("item titles = %v", got)
+	}
+
+	_, _, err = cd.BrowseChildren(context.Background(), contentdirectory.Root, 0, 0, xmltypes.CommaSeparatedStrings{"+dc:date"})
+	if err != contentdirectory.ErrInvalidSortCriteria {
+		t.Fatalf("unsupported sort error = %v, want %v", err, contentdirectory.ErrInvalidSortCriteria)
+	}
+}
+
+func TestItemsForPathsSkipsMissingMetadata(t *testing.T) {
+	baseURL, err := url.Parse("http://localhost/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cd := &ContentDirectory{basePath: t.TempDir(), baseURL: baseURL, metadataCache: &nilMetadataCache{}}
+
+	items, err := cd.itemsForPaths(filepath.Join(cd.basePath, "missing.mp3"))
+	if err != nil {
+		t.Fatalf("itemsForPaths failed: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("itemsForPaths returned %+v, want no items", items)
+	}
+}
+
 func (m *mockMetadataCache) MetadataForPaths(paths []string) []*media.Metadata {
 	var mds []*media.Metadata
 	for _, p := range paths {
@@ -95,7 +156,7 @@ func TestSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("creating temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 
 	files := []string{
 		"video1.mp4",
