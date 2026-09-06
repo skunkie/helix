@@ -297,7 +297,7 @@ func SendUpdateNotification(ctx context.Context, d *Device, url string, iface *n
 	log, _ := logger.FromContext(ctx)
 	log.WithField("httpu.method", req.Method).
 		WithField("httpu.notification.type", req.Header.Get("Nts")).
-		Info("sent update notification")
+		Debug("sent update notification")
 	return nil
 }
 
