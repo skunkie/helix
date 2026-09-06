@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -196,11 +197,11 @@ func getObjectByType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proxyDo(w, r.Method, uri)
+	proxyDo(r.Context(), w, r.Method, uri)
 }
 
-func proxyDo(w http.ResponseWriter, method, uri string) {
-	req, err := http.NewRequest(method, uri, nil)
+func proxyDo(ctx context.Context, w http.ResponseWriter, method, uri string) {
+	req, err := http.NewRequestWithContext(ctx, method, uri, http.NoBody)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -210,7 +211,7 @@ func proxyDo(w http.ResponseWriter, method, uri string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer rsp.Body.Close()
+	defer func() { _ = rsp.Body.Close() }()
 
 	for k, vs := range rsp.Header {
 		for _, v := range vs {
@@ -219,7 +220,7 @@ func proxyDo(w http.ResponseWriter, method, uri string) {
 	}
 	w.WriteHeader(rsp.StatusCode)
 
-	io.Copy(w, rsp.Body)
+	_, _ = io.Copy(w, rsp.Body)
 }
 
 // AVTransport handlers.
