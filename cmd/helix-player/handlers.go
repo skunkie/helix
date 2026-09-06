@@ -365,7 +365,7 @@ func setControlPointElapsed(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("could not parse elapsed seconds %q: %v", elapsedSeconds, err), http.StatusBadRequest)
 		return
 	}
-	d := time.Duration(elapsedFloat) * time.Second
+	d := time.Duration(elapsedFloat * float64(time.Second))
 
 	if err := controlLoop.SetElapsed(d); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
