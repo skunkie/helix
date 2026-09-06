@@ -9,6 +9,7 @@ package httpu
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -47,9 +48,15 @@ func udpIPv4AddrForInterface(iface *net.Interface) (*net.UDPAddr, error) {
 		return nil, err
 	}
 	for _, addr := range addrs {
-		addr := addr.(*net.IPNet)
-		if addr.IP.To4() != nil {
-			return &net.UDPAddr{IP: addr.IP}, nil
+		var ip net.IP
+		switch addr := addr.(type) {
+		case *net.IPNet:
+			ip = addr.IP
+		case *net.IPAddr:
+			ip = addr.IP
+		}
+		if ip.To4() != nil {
+			return &net.UDPAddr{IP: ip}, nil
 		}
 	}
 	return nil, errors.New("interface does not have an IPv4 address")
@@ -73,7 +80,9 @@ func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response,
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not listen on UDP: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
+	stopCancel := context.AfterFunc(req.Context(), func() { _ = conn.Close() })
+	defer stopCancel()
 
 	if iface != nil {
 		p := ipv4.NewPacketConn(conn)
@@ -82,7 +91,9 @@ func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response,
 	}
 
 	if deadline, ok := req.Context().Deadline(); ok {
-		conn.SetDeadline(deadline)
+		if err := conn.SetDeadline(deadline); err != nil {
+			return nil, nil, fmt.Errorf("could not set UDP deadline: %w", err)
+		}
 	}
 
 	addr, err := net.ResolveUDPAddr("udp", req.Host)
@@ -107,6 +118,12 @@ func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response,
 
 		n, addr, err := conn.ReadFrom(packet)
 		if err != nil {
+			if ctxErr := req.Context().Err(); ctxErr != nil {
+				if errors.Is(ctxErr, context.DeadlineExceeded) {
+					break
+				}
+				return rsps, errs, ctxErr
+			}
 			var netError net.Error
 			if errors.As(err, &netError) && netError.Timeout() {
 				break
@@ -144,7 +161,9 @@ func Send(req *http.Request, repeats int, iface *net.Interface) error {
 	if err != nil {
 		return fmt.Errorf("could not listen on UDP: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
+	stopCancel := context.AfterFunc(req.Context(), func() { _ = conn.Close() })
+	defer stopCancel()
 
 	if iface != nil {
 		p := ipv4.NewPacketConn(conn)
@@ -153,7 +172,9 @@ func Send(req *http.Request, repeats int, iface *net.Interface) error {
 	}
 
 	if deadline, ok := req.Context().Deadline(); ok {
-		conn.SetDeadline(deadline)
+		if err := conn.SetDeadline(deadline); err != nil {
+			return fmt.Errorf("could not set UDP deadline: %w", err)
+		}
 	}
 
 	addr, err := net.ResolveUDPAddr("udp", req.Host)
@@ -165,6 +186,9 @@ func Send(req *http.Request, repeats int, iface *net.Interface) error {
 
 	for i := 0; i < repeats; i++ {
 		if _, err := conn.WriteTo(packet, addr); err != nil {
+			if ctxErr := req.Context().Err(); ctxErr != nil {
+				return ctxErr
+			}
 			return fmt.Errorf("could not send discover packet: %w", err)
 		}
 		time.Sleep(5 * time.Millisecond)

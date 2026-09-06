@@ -60,7 +60,7 @@ func TestServerRunningLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("net.ListenUDP failed: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	s.Handler = func(req *http.Request) []Response {
 		return nil
@@ -106,7 +106,7 @@ func TestServerHandlesRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("net.DialUDP failed: %v", err)
 	}
-	defer clientConn.Close()
+	defer func() { _ = clientConn.Close() }()
 
 	go func() {
 		_ = s.Serve(conn)
@@ -121,7 +121,9 @@ func TestServerHandlesRequest(t *testing.T) {
 	}
 
 	resp := make([]byte, 2048)
-	clientConn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	if err := clientConn.SetReadDeadline(time.Now().Add(500 * time.Millisecond)); err != nil {
+		t.Fatalf("SetReadDeadline failed: %v", err)
+	}
 	n, err := clientConn.Read(resp)
 	if err != nil {
 		t.Fatalf("client read failed: %v", err)
