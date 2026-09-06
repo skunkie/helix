@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -9,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ethulhu/helix/logger"
@@ -20,6 +22,8 @@ import (
 
 type (
 	Loop struct {
+		mu sync.RWMutex
+
 		device *upnp.Device
 		queue  Queue
 
@@ -96,8 +100,11 @@ func NewLoop(ctx context.Context) *Loop {
 				return
 			case <-ticker.C:
 				log, ctx := logger.FromContext(ctx)
+				loop.mu.RLock()
+				currentDevice := loop.device
+				loop.mu.RUnlock()
 
-				deviceChanged := udnOrDefault(prevDevice, "") != udnOrDefault(loop.device, "")
+				deviceChanged := udnOrDefault(prevDevice, "") != udnOrDefault(currentDevice, "")
 
 				if deviceChanged && prevDevice != nil {
 					go func(transport avtransport.Interface, udn, name string) {
@@ -112,34 +119,34 @@ func NewLoop(ctx context.Context) *Loop {
 						log.Info("stopped previous transport")
 					}(transport(prevDevice), prevDevice.UDN, prevDevice.Name)
 				}
-				prevDevice = loop.device
+				prevDevice = currentDevice
 
-				if loop.device == nil {
+				if currentDevice == nil {
 					if deviceChanged {
 						log.Info("no current renderer device")
 					}
 					continue
 				}
-				log.AddField("transport.udn", loop.device.UDN)
-				log.AddField("transport.name", loop.device.Name)
+				log.AddField("transport.udn", currentDevice.UDN)
+				log.AddField("transport.name", currentDevice.Name)
 
 				if deviceChanged { // && loop.device != nil
 					var err error
-					_, protocolInfos, err = manager(loop.device).ProtocolInfo(ctx)
+					_, protocolInfos, err = manager(currentDevice).ProtocolInfo(ctx)
 					if err != nil {
-						loop.device = nil
+						loop.clearTransport(currentDevice)
 						log.WithError(err).Error("could not get sink protocols for renderer")
 						continue
 					}
 					if len(protocolInfos) == 0 {
-						loop.device = nil
-						log.WithError(err).Error("got 0 sink protocols for renderer, expected at least 1")
+						loop.clearTransport(currentDevice)
+						log.Error("got 0 sink protocols for renderer, expected at least 1")
 						continue
 					}
 					log.Info("got sink protocols for renderer")
 				}
 
-				currTransport := transport(loop.device)
+				currTransport := transport(currentDevice)
 				currTransportState, err := newTransportState(ctx, currTransport)
 				if err != nil {
 					log.WithError(err).Error("could not get transport state")
@@ -150,18 +157,23 @@ func NewLoop(ctx context.Context) *Loop {
 				if currTransportState.state == avtransport.StatePlaying || currTransportState.state == avtransport.StatePaused {
 					log.AddField("current.uri", currTransportState.uri)
 				}
+				loop.mu.Lock()
+				if loop.device != currentDevice {
+					loop.mu.Unlock()
+					continue
+				}
+				queue := loop.queue
+				newLoopState, newLoopElapsed, action := tick(queue, protocolInfos, prevTransportState, currTransportState, loop.state, loop.elapsed, deviceChanged)
 				loop.duration = currTransportState.duration
-
-				newLoopState, newLoopElapsed, action := tick(loop.queue, protocolInfos, prevTransportState, currTransportState, loop.state, loop.elapsed, deviceChanged)
-
 				if loop.state != newLoopState {
 					loop.state = newLoopState
 					log.AddField("new.state", newLoopState)
 					log.Info("updated desired loop state")
 				}
 				loop.elapsed = newLoopElapsed
+				loop.mu.Unlock()
 
-				loop.enact(ctx, protocolInfos, action)
+				loop.enact(ctx, currentDevice, queue, newLoopElapsed, protocolInfos, action)
 
 				prevTransportState = currTransportState
 			}
@@ -170,20 +182,36 @@ func NewLoop(ctx context.Context) *Loop {
 	return loop
 }
 
-func (loop *Loop) State() avtransport.State { return loop.state }
+func (loop *Loop) State() avtransport.State {
+	loop.mu.RLock()
+	defer loop.mu.RUnlock()
+	return loop.state
+}
 
-func (loop *Loop) Play()  { loop.state = avtransport.StatePlaying }
-func (loop *Loop) Pause() { loop.state = avtransport.StatePaused }
-func (loop *Loop) Stop()  { loop.state = avtransport.StateStopped }
+func (loop *Loop) Play()  { loop.setState(avtransport.StatePlaying) }
+func (loop *Loop) Pause() { loop.setState(avtransport.StatePaused) }
+func (loop *Loop) Stop()  { loop.setState(avtransport.StateStopped) }
+
+func (loop *Loop) setState(state avtransport.State) {
+	loop.mu.Lock()
+	defer loop.mu.Unlock()
+	loop.state = state
+}
 
 func (loop *Loop) Duration() time.Duration {
+	loop.mu.RLock()
+	defer loop.mu.RUnlock()
 	return loop.duration
 }
 func (loop *Loop) Elapsed() time.Duration {
+	loop.mu.RLock()
+	defer loop.mu.RUnlock()
 	return loop.elapsed
 }
 func (loop *Loop) SetElapsed(d time.Duration) error {
-	if d < loop.duration {
+	loop.mu.Lock()
+	defer loop.mu.Unlock()
+	if d >= 0 && d < loop.duration {
 		loop.elapsed = d
 		return nil
 	}
@@ -191,17 +219,25 @@ func (loop *Loop) SetElapsed(d time.Duration) error {
 }
 
 func (loop *Loop) Queue() Queue {
+	loop.mu.RLock()
+	defer loop.mu.RUnlock()
 	return loop.queue
 }
 func (loop *Loop) SetQueue(queue Queue) {
+	loop.mu.Lock()
+	defer loop.mu.Unlock()
 	loop.queue = queue
 }
 
 func (loop *Loop) Transport() *upnp.Device {
+	loop.mu.RLock()
+	defer loop.mu.RUnlock()
 	return loop.device
 }
 func (loop *Loop) SetTransport(device *upnp.Device) error {
 	if device == nil {
+		loop.mu.Lock()
+		defer loop.mu.Unlock()
 		loop.device = nil
 		return nil
 	}
@@ -213,13 +249,23 @@ func (loop *Loop) SetTransport(device *upnp.Device) error {
 		return errors.New("device does not support ConnectionManager")
 	}
 
+	loop.mu.Lock()
 	loop.device = device
+	loop.mu.Unlock()
 	return nil
 }
 
-func (loop *Loop) enact(ctx context.Context, protocolInfos []upnpav.ProtocolInfo, action action) {
+func (loop *Loop) clearTransport(device *upnp.Device) {
+	loop.mu.Lock()
+	defer loop.mu.Unlock()
+	if loop.device == device {
+		loop.device = nil
+	}
+}
+
+func (loop *Loop) enact(ctx context.Context, device *upnp.Device, queue Queue, elapsed time.Duration, protocolInfos []upnpav.ProtocolInfo, action action) {
 	log, ctx := logger.FromContext(ctx)
-	transport := transport(loop.device)
+	transport := transport(device)
 	log.AddField("action", action)
 
 	switch action {
@@ -227,7 +273,7 @@ func (loop *Loop) enact(ctx context.Context, protocolInfos []upnpav.ProtocolInfo
 		log.Debug("doing nothing")
 
 	case skipTrack:
-		loop.queue.Skip()
+		queue.Skip()
 		log.Info("skipped track")
 
 	case play:
@@ -252,15 +298,15 @@ func (loop *Loop) enact(ctx context.Context, protocolInfos []upnpav.ProtocolInfo
 		log.Info("stopped transport")
 
 	case seek:
-		log.AddField("seek", loop.elapsed)
-		if err := transport.Seek(ctx, loop.elapsed); err != nil {
+		log.AddField("seek", elapsed)
+		if err := transport.Seek(ctx, elapsed); err != nil {
 			log.WithError(err).Warning("could not seek transport")
 			return
 		}
 		log.Info("seeked transport")
 
 	case setURI:
-		item, ok := loop.queue.Current()
+		item, ok := queue.Current()
 		if !ok {
 			panic("got empty queue for action setURI")
 		}
@@ -284,7 +330,7 @@ func (loop *Loop) enact(ctx context.Context, protocolInfos []upnpav.ProtocolInfo
 		log.Info("set transport URI")
 
 	case setNextURI:
-		item, ok := loop.queue.Next()
+		item, ok := queue.Next()
 		if !ok {
 			panic("got empty queue for action setNextURI")
 		}
@@ -427,7 +473,7 @@ func newTransportState(ctx context.Context, transport avtransport.Interface) (tr
 	if state != avtransport.StateStopped {
 		uri, _, duration, elapsed, err := transport.PositionInfo(ctx)
 		if err != nil {
-			return t, nil
+			return t, err
 		}
 		t.uri = uri
 		t.elapsed = elapsed
@@ -435,7 +481,7 @@ func newTransportState(ctx context.Context, transport avtransport.Interface) (tr
 
 		_, _, nextURI, _, err := transport.MediaInfo(ctx)
 		if err != nil {
-			return t, nil
+			return t, err
 		}
 		t.nextURI = nextURI
 	}

@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -6,6 +7,7 @@ package controlpoint
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -472,6 +474,57 @@ func TestLoopContextCancel(t *testing.T) {
 	// There's no explicit way to check that the goroutine has exited, so we'll just sleep
 	// and trust that the test will fail if it doesn't.
 	time.Sleep(2 * time.Second)
+}
+
+func TestLoopConcurrentAccess(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	loop := NewLoop(ctx)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		deadline := time.Now().Add(1200 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			loop.Play()
+			loop.Pause()
+			loop.Stop()
+			_ = loop.SetTransport(nil)
+			_ = loop.State()
+			_ = loop.Transport()
+		}
+	}()
+	<-done
+}
+
+type failingStateTransport struct {
+	avtransport.Interface
+	positionErr error
+	mediaErr    error
+}
+
+func (t failingStateTransport) TransportInfo(context.Context) (avtransport.State, avtransport.Status, error) {
+	return avtransport.StatePlaying, avtransport.StatusOK, nil
+}
+
+func (t failingStateTransport) PositionInfo(context.Context) (string, *upnpav.DIDLLite, time.Duration, time.Duration, error) {
+	return "uri", nil, time.Minute, time.Second, t.positionErr
+}
+
+func (t failingStateTransport) MediaInfo(context.Context) (string, *upnpav.DIDLLite, string, *upnpav.DIDLLite, error) {
+	return "uri", nil, "next", nil, t.mediaErr
+}
+
+func TestNewTransportStatePropagatesQueryErrors(t *testing.T) {
+	positionErr := errors.New("position failed")
+	if _, err := newTransportState(context.Background(), failingStateTransport{positionErr: positionErr}); !errors.Is(err, positionErr) {
+		t.Fatalf("PositionInfo error = %v, want %v", err, positionErr)
+	}
+
+	mediaErr := errors.New("media failed")
+	if _, err := newTransportState(context.Background(), failingStateTransport{mediaErr: mediaErr}); !errors.Is(err, mediaErr) {
+		t.Fatalf("MediaInfo error = %v, want %v", err, mediaErr)
+	}
 }
 
 func resource(uri, mime string) upnpav.Resource {
