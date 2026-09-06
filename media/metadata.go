@@ -59,7 +59,7 @@ func MetadataForPath(p string) (*Metadata, error) {
 
 	bytes, err := exec.Command("ffprobe", append(ffprobeArgs, p)...).Output()
 	if err != nil {
-		return nil, fmt.Errorf("could not run ffprobe: %w", err)
+		return md, fmt.Errorf("could not run ffprobe: %w", err)
 	}
 
 	var ffprobe ffprobeOutput
