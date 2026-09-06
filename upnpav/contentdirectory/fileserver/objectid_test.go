@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -99,6 +100,11 @@ func TestPathForObjectID(t *testing.T) {
 		{
 			basePath: "/mnt/media",
 			object:   upnpav.ObjectID("../../etc/passwd"),
+			wantOK:   false,
+		},
+		{
+			basePath: "/mnt/media",
+			object:   upnpav.ObjectID("../media-private/movie.mp4"),
 			wantOK:   false,
 		},
 	}

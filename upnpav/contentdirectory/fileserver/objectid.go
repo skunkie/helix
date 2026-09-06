@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +7,6 @@ package fileserver
 
 import (
 	"net/url"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -24,8 +24,10 @@ func pathForObjectID(basePath string, id upnpav.ObjectID) (string, bool) {
 		return "", false
 	}
 
-	maybePath := path.Clean(path.Join(basePath, decoded))
-	if !strings.HasPrefix(maybePath, basePath) {
+	maybePath := filepath.Clean(filepath.Join(basePath, filepath.FromSlash(decoded)))
+	relPath, err := filepath.Rel(basePath, maybePath)
+	if err != nil || relPath == ".." || filepath.IsAbs(relPath) ||
+		strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
 		return "", false
 	}
 	return maybePath, true
@@ -43,5 +45,5 @@ func parentIDForPath(basePath, p string) upnpav.ObjectID {
 	if id == contentdirectory.Root {
 		return upnpav.ObjectID("-1")
 	}
-	return objectIDForPath(basePath, path.Dir(p))
+	return objectIDForPath(basePath, filepath.Dir(p))
 }
