@@ -49,6 +49,10 @@ func TestParseDuration(t *testing.T) {
 			raw:  "1:04:03",
 			want: Duration{1*time.Hour + 4*time.Minute + 3*time.Second},
 		},
+		{
+			raw:     "04:03.1/0",
+			wantErr: true,
+		},
 	}
 
 	for i, tt := range tests {
@@ -83,7 +87,7 @@ func TestFormatDuration(t *testing.T) {
 			want:     "0:00:01",
 		},
 		{
-			duration: Duration{1 * time.Second + 12*time.Millisecond},
+			duration: Duration{1*time.Second + 12*time.Millisecond},
 			want:     "0:00:01.012",
 		},
 	}

@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -70,6 +71,9 @@ func ParseDuration(raw string) (Duration, error) {
 			bottom, err := strconv.Atoi(fractions[1])
 			if err != nil {
 				return Duration{0}, fmt.Errorf("could not parse bottom of fraction %q: %v", fractions[1], err)
+			}
+			if bottom == 0 {
+				return Duration{0}, fmt.Errorf("fraction denominator must not be zero")
 			}
 			milliseconds = (1000 * top) / bottom
 		default:
