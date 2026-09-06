@@ -66,6 +66,13 @@ func TestParseCallbackURLs(t *testing.T) {
 	}
 }
 
+func TestSubscriptionTimeoutRejectsOverflow(t *testing.T) {
+	timeout, header := subscriptionTimeout("Second-18446744073709551615")
+	if timeout != 30*time.Minute || header != "Second-1800" {
+		t.Fatalf("subscriptionTimeout overflow = %v, %q", timeout, header)
+	}
+}
+
 func TestEventing_SubscribeAndNotify(t *testing.T) {
 	type notification struct {
 		body string

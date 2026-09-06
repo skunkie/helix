@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -75,10 +76,14 @@ func subscriptionTimeout(raw string) (time.Duration, string) {
 		return 0, "Second-infinite"
 	}
 
-	seconds := 1800
-	var parsed int
-	if _, err := fmt.Sscanf(raw, "Second-%d", &parsed); err == nil && parsed > 0 {
-		seconds = parsed
+	seconds := uint64(1800)
+	raw = strings.TrimSpace(raw)
+	if len(raw) > len("Second-") && strings.EqualFold(raw[:len("Second-")], "Second-") {
+		parsed, err := strconv.ParseUint(raw[len("Second-"):], 10, 64)
+		maxSeconds := uint64((1<<63 - 1) / int64(time.Second))
+		if err == nil && parsed > 0 && parsed <= maxSeconds {
+			seconds = parsed
+		}
 	}
 	return time.Duration(seconds) * time.Second, fmt.Sprintf("Second-%d", seconds)
 }
@@ -295,7 +300,7 @@ func (d *Device) sendEvent(parent context.Context, urn URN, urls []*url.URL, sid
 			errs = append(errs, fmt.Errorf("notify %s: %w", u, err))
 			continue
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			errs = append(errs, fmt.Errorf("notify %s: %s", u, resp.Status))
 		}
