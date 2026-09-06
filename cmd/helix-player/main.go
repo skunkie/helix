@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -73,7 +74,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	ctx := context.Background()
 
@@ -257,7 +258,7 @@ func main() {
 	if *debugAssetsPath != "" {
 		m.PathPrefix("/").
 			Methods("GET").
-			Handler(http.FileServer(httputil.TryFiles{http.Dir(*debugAssetsPath)}))
+			Handler(http.FileServer(httputil.TryFiles{FileSystem: http.Dir(*debugAssetsPath)}))
 	} else {
 		fs, err := fs.Sub(staticFS, "static")
 		if err != nil {
@@ -265,7 +266,7 @@ func main() {
 		}
 		m.PathPrefix("/").
 			Methods("GET").
-			Handler(http.FileServer(httputil.TryFiles{http.FS(fs)}))
+			Handler(http.FileServer(httputil.TryFiles{FileSystem: http.FS(fs)}))
 	}
 
 	m.Use(httputil.Log)

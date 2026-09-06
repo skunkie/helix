@@ -405,7 +405,7 @@ func appendToQueue(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case didllite.IsSingleItem():
 		id := trackList.Append(didllite.Items[0])
-		data := queueItemFromQueueItem(controlpoint.QueueItem{id, didllite.Items[0]})
+		data := queueItemFromQueueItem(controlpoint.QueueItem{ID: id, Item: didllite.Items[0]})
 		httputil.MustWriteJSON(w, []queueItem{data})
 
 	case didllite.IsSingleContainer():
@@ -418,7 +418,7 @@ func appendToQueue(w http.ResponseWriter, r *http.Request) {
 		var queueItems []queueItem
 		for _, item := range didllite.Items {
 			id := trackList.Append(item)
-			queueItems = append(queueItems, queueItemFromQueueItem(controlpoint.QueueItem{id, item}))
+			queueItems = append(queueItems, queueItemFromQueueItem(controlpoint.QueueItem{ID: id, Item: item}))
 		}
 		httputil.MustWriteJSON(w, queueItems)
 
