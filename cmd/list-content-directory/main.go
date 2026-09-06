@@ -44,8 +44,9 @@ func main() {
 		}
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	devices, _, err := upnp.DiscoverDevices(ctx, contentdirectory.Version1, iface)
+	cancel()
 	if err != nil {
 		log.Fatalf("could not discover ContentDirectory clients: %v", err)
 	}
@@ -61,7 +62,8 @@ func main() {
 		log.Fatalf("could not find ContentDirectory server %v", *server)
 	}
 
-	ctx, _ = context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	didl, _, err := directory.BrowseChildren(ctx, upnpav.ObjectID(*object), *startingIndex, *requestedCount, nil)
 	if err != nil {
 		log.Fatalf("could not list ContentDirectory root: %v", err)

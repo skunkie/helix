@@ -39,8 +39,9 @@ func main() {
 		}
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	devices, _, err := upnp.DiscoverDevices(ctx, connectionmanager.Version1, iface)
+	cancel()
 	if err != nil {
 		log.Fatalf("could not discover ConnectionManager clients: %v", err)
 	}
@@ -56,7 +57,8 @@ func main() {
 		log.Fatalf("could not find ConnectionManager server %v", *server)
 	}
 
-	ctx, _ = context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 	sources, sinks, err := manager.ProtocolInfo(ctx)
 	if err != nil {
 		log.Fatal(err)

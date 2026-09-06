@@ -37,7 +37,8 @@ func main() {
 		}
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), *timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
 	devices, errs, err := upnp.DiscoverDevices(ctx, upnp.All, iface)
 	if err != nil {
 		log.Fatalf("could not discover URLs: %v", err)

@@ -38,8 +38,9 @@ func main() {
 		}
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	devices, _, err := upnp.DiscoverDevices(ctx, avtransport.Version1, iface)
+	cancel()
 	if err != nil {
 		log.Fatalf("could not discover AVTransport clients: %v", err)
 	}
@@ -55,7 +56,8 @@ func main() {
 		log.Fatalf("could not find AVTransport server %v", *server)
 	}
 
-	ctx, _ = context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 	uri, metadata, duration, reltime, err := transport.PositionInfo(ctx)
 	if err != nil {
 		log.Fatalf("could not get media info: %v", err)
