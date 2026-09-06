@@ -27,11 +27,9 @@ func TestNewDeviceCache(t *testing.T) {
 
 	// mockDevice encapsulates a mock UPnP device (SSDP and HTTP description).
 	type mockDevice struct {
-		ssdp   *mockSSDP
-		http   *mockHTTP
-		stop   func()
-		closed bool
-		mu     sync.Mutex
+		ssdp *mockSSDP
+		http *mockHTTP
+		stop func()
 	}
 	startMockDevice := func() *mockDevice {
 		ssdp := newMockSSDP(t, testURN, testUDN, location)
@@ -125,7 +123,7 @@ func (m *mockSSDP) run(urn URN, udn, location string) {
 		default:
 		}
 
-		m.conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		_ = m.conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		n, from, err := m.conn.ReadFrom(buf)
 		if err != nil {
 			continue // Most likely a timeout
@@ -145,15 +143,15 @@ func (m *mockSSDP) run(urn URN, udn, location string) {
 		if err != nil {
 			continue
 		}
-		c.Write([]byte(resp))
-		c.Close()
+		_, _ = c.Write([]byte(resp))
+		_ = c.Close()
 	}
 }
 
 func (m *mockSSDP) Close() {
 	m.stopOnce.Do(func() {
 		close(m.stopCh)
-		m.conn.Close()
+		_ = m.conn.Close()
 		m.wg.Wait()
 	})
 }
@@ -166,7 +164,7 @@ type mockHTTP struct {
 func newMockHTTP(t *testing.T, addr string, urn URN, udn string) *mockHTTP {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, `<root xmlns="urn:schemas-upnp-org:device-1-0"><device><deviceType>%s</deviceType><UDN>%s</UDN></device></root>`, urn, udn)
+		_, _ = fmt.Fprintf(w, `<root xmlns="urn:schemas-upnp-org:device-1-0"><device><deviceType>%s</deviceType><UDN>%s</UDN></device></root>`, urn, udn)
 	})
 	server := &http.Server{Addr: addr, Handler: mux}
 
@@ -180,7 +178,7 @@ func newMockHTTP(t *testing.T, addr string, urn URN, udn string) *mockHTTP {
 }
 
 func (m *mockHTTP) Close() {
-	m.server.Shutdown(context.Background())
+	_ = m.server.Shutdown(context.Background())
 }
 
 func getHeader(msg, header string) string {

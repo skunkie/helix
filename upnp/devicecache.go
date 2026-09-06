@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -32,11 +33,19 @@ type (
 )
 
 const (
-	discoveryTimeout = 2 * time.Second
+	discoveryTimeout      = 2 * time.Second
+	defaultInitialRefresh = 5 * time.Second
+	defaultStableRefresh  = 30 * time.Second
 )
 
 // NewDeviceCache returns a DeviceCache searching for the given URN, every refresh period, optionally on a specific network interface.
 func NewDeviceCache(ctx context.Context, urn URN, options DeviceCacheOptions) *DeviceCache {
+	if options.InitialRefresh <= 0 {
+		options.InitialRefresh = defaultInitialRefresh
+	}
+	if options.StableRefresh <= 0 {
+		options.StableRefresh = defaultStableRefresh
+	}
 	d := &DeviceCache{
 		urn:   urn,
 		iface: options.Interface,
@@ -79,9 +88,6 @@ func NewDeviceCache(ctx context.Context, urn URN, options DeviceCacheOptions) *D
 
 // Refresh forces the DeviceCache to update itself by discovering UPnP devices.
 func (d *DeviceCache) Refresh(ctx context.Context) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
 	log, ctx := logger.FromContext(ctx)
 	log.AddField("upnp.urn", d.urn)
 
@@ -99,7 +105,9 @@ func (d *DeviceCache) Refresh(ctx context.Context) {
 		newDevices[device.UDN] = device
 	}
 
+	d.mu.Lock()
 	d.devices = newDevices
+	d.mu.Unlock()
 	log.Debug("updated UPnP device cache")
 }
 
