@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -47,16 +48,25 @@ func serializeSOAPEnvelope(body []byte, err error) []byte {
 	buf.WriteString(`<s:Body>`)
 	buf.Write(body)
 	if err != nil {
+		writeEscaped := func(value string) {
+			_ = xml.EscapeText(&buf, []byte(value))
+		}
 		buf.WriteString(`<s:Fault>`)
 		var rErr Error
 		if errors.As(err, &rErr) {
-			fmt.Fprintf(&buf, `<s:faultcode>s:%v</s:faultcode>`, rErr.FaultCode())
-			fmt.Fprintf(&buf, `<s:faultstring>%v</s:faultstring>`, rErr.FaultString())
-			fmt.Fprintf(&buf, `<s:detail>%v</s:detail>`, rErr.Detail())
+			buf.WriteString(`<s:faultcode>s:`)
+			writeEscaped(string(rErr.FaultCode()))
+			buf.WriteString(`</s:faultcode><s:faultstring>`)
+			writeEscaped(rErr.FaultString())
+			buf.WriteString(`</s:faultstring><s:detail>`)
+			buf.WriteString(rErr.Detail())
+			buf.WriteString(`</s:detail>`)
 		} else {
 			fmt.Fprintf(&buf, `<s:faultcode>s:%v</s:faultcode>`, FaultServer)
 			fmt.Fprintf(&buf, `<s:faultstring>Server Error</s:faultstring>`)
-			fmt.Fprintf(&buf, `<s:detail>%v</s:detail>`, err)
+			buf.WriteString(`<s:detail>`)
+			writeEscaped(err.Error())
+			buf.WriteString(`</s:detail>`)
 		}
 		buf.WriteString(`</s:Fault>`)
 	}
@@ -72,9 +82,12 @@ func deserializeSOAPEnvelope(data []byte) ([]byte, error) {
 	}
 
 	if e.Body.Fault != nil {
+		faultCode := e.Body.Fault.Code
+		if _, unqualified, ok := strings.Cut(faultCode, ":"); ok {
+			faultCode = unqualified
+		}
 		return nil, remoteError{
-			// TODO: this can out-of-bounds.
-			faultCode:   FaultCode(strings.Split(e.Body.Fault.Code, ":")[1]),
+			faultCode:   FaultCode(faultCode),
 			faultString: e.Body.Fault.String,
 			detail:      strings.TrimSpace(e.Body.Fault.Detail.Contents),
 		}

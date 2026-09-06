@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -36,10 +37,10 @@ func TestSerializeSOAPEnvelope(t *testing.T) {
 		},
 		{
 			input: nil,
-			err:   remoteError{
-				faultCode: FaultClient,
+			err: remoteError{
+				faultCode:   FaultClient,
 				faultString: "UPnPError",
-				detail: "blahblah",
+				detail:      "blahblah",
 			},
 			want: `<?xml version="1.0" encoding="UTF-8"?>
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><s:Fault><s:faultcode>s:Client</s:faultcode><s:faultstring>UPnPError</s:faultstring><s:detail>blahblah</s:detail></s:Fault></s:Body></s:Envelope>`,
@@ -87,10 +88,16 @@ func TestDeserializeSOAPEnvelope(t *testing.T) {
 </UPnPError>`,
 			},
 		},
+		{
+			raw: `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault><faultcode>Client</faultcode><faultstring>Bad request</faultstring><detail/></s:Fault></s:Body></s:Envelope>`,
+			wantErr: remoteError{
+				faultCode:   FaultClient,
+				faultString: "Bad request",
+			},
+		},
 	}
 
 	for i, tt := range tests {
-		var got interface{} = nil
 		got, gotErr := deserializeSOAPEnvelope([]byte(tt.raw))
 
 		if !reflect.DeepEqual(tt.want, got) {
