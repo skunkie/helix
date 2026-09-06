@@ -173,6 +173,9 @@ func getObjectByType(w http.ResponseWriter, r *http.Request) {
 
 	uri := ""
 	for _, r := range item.Resources {
+		if r.ProtocolInfo == nil {
+			continue
+		}
 		if r.ProtocolInfo.Protocol != upnpav.ProtocolHTTP {
 			continue
 		}

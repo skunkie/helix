@@ -35,6 +35,9 @@ type objectMetadata struct {
 func objectMetadataFromItem(item upnpav.Item) objectMetadata {
 	var mimetypes []string
 	for _, r := range item.Resources {
+		if r.ProtocolInfo == nil {
+			continue
+		}
 		if r.ProtocolInfo.Protocol != upnpav.ProtocolHTTP {
 			continue
 		}

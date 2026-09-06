@@ -423,4 +423,10 @@ func TestDIDLForURI(t *testing.T) {
 	if ok {
 		t.Errorf("URIForProtocolInfos with unmatched protocol expected false, got true")
 	}
+
+	item.Resources = append([]Resource{{URI: "missing-protocol-info"}}, item.Resources...)
+	matchedURI, ok = item.URIForProtocolInfos([]ProtocolInfo{*pInfo})
+	if !ok || matchedURI != "http://example.com/movie.mp4" {
+		t.Errorf("URIForProtocolInfos with nil ProtocolInfo = %v, %v", matchedURI, ok)
+	}
 }

@@ -376,6 +376,9 @@ func DIDLForURI(uri string) (*DIDLLite, error) {
 func (item Item) URIForProtocolInfos(infos []ProtocolInfo) (string, bool) {
 	for _, resource := range item.Resources {
 		resInfo := resource.ProtocolInfo
+		if resInfo == nil {
+			continue
+		}
 		for _, info := range infos {
 			if resInfo.Protocol == info.Protocol &&
 				resInfo.Network == info.Network &&
