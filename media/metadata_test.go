@@ -31,8 +31,8 @@ func TestMergeFFProbeOutput(t *testing.T) {
 				},
 			},
 			want: &Metadata{
-				Duration: 12 * time.Second,
-				Tags: map[string]string{},
+				Duration: 12*time.Second + 400*time.Millisecond,
+				Tags:     map[string]string{},
 			},
 		},
 		{
@@ -46,8 +46,8 @@ func TestMergeFFProbeOutput(t *testing.T) {
 			},
 			want: &Metadata{
 				Title:    "foo",
-				Duration: 12 * time.Second,
-				Tags: map[string]string{},
+				Duration: 12*time.Second + 400*time.Millisecond,
+				Tags:     map[string]string{},
 			},
 		},
 		{
@@ -65,7 +65,7 @@ func TestMergeFFProbeOutput(t *testing.T) {
 			},
 			want: &Metadata{
 				Title:    "bar",
-				Duration: 12 * time.Second,
+				Duration: 12*time.Second + 400*time.Millisecond,
 				Tags: map[string]string{
 					"Album": "baz",
 				},

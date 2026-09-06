@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -72,7 +73,7 @@ func MetadataForPath(p string) (*Metadata, error) {
 
 func mergeFFProbeOutput(md *Metadata, ffprobe ffprobeOutput) error {
 	if duration, err := strconv.ParseFloat(ffprobe.Format.DurationSeconds, 64); err == nil {
-		md.Duration = time.Duration(duration) * time.Second
+		md.Duration = time.Duration(duration * float64(time.Second))
 	}
 
 	if md.Tags == nil {
