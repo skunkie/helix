@@ -42,8 +42,12 @@ func (c *client) Call(ctx context.Context, namespace, action string, input []byt
 	if err != nil {
 		return nil, fmt.Errorf("could not do HTTP request: %w", err)
 	}
+	defer func() { _ = rsp.Body.Close() }()
 
-	data, _ := io.ReadAll(rsp.Body)
+	data, err := io.ReadAll(rsp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("could not read HTTP response: %w", err)
+	}
 
 	// prioritize SOAP errors over regular HTTP errors.
 	out, err := deserializeSOAPEnvelope(data)
