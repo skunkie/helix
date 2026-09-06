@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -6,6 +7,7 @@ package controlpoint
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/ethulhu/helix/upnpav"
@@ -98,11 +100,43 @@ func TestTrackListAddTwoRemoveFirst(t *testing.T) {
 
 	tl.Remove(id1)
 
-	if !reflect.DeepEqual(tl.Upcoming(), []QueueItem{{id2, track2}}) {
-		t.Errorf("tl.Upcoming() == %+v, expected %+v", tl.Upcoming(), []QueueItem{{id2, track2}})
+	want := []QueueItem{{ID: id2, Item: track2}}
+	if !reflect.DeepEqual(tl.Upcoming(), want) {
+		t.Errorf("tl.Upcoming() == %+v, expected %+v", tl.Upcoming(), want)
 	}
 
 	if l := len(tl.History()); l != 0 {
 		t.Errorf("len(tl.History()) == %d, expected 0", l)
 	}
+}
+
+func TestTrackListAppendAfterRemoveAll(t *testing.T) {
+	tl := NewTrackList()
+	tl.Append(upnpav.Item{Title: "first"})
+	tl.RemoveAll()
+	tl.Append(upnpav.Item{Title: "second"})
+
+	if got := tl.Upcoming(); len(got) != 1 || got[0].Item.Title != "second" {
+		t.Fatalf("Upcoming() = %+v, want one newly appended item", got)
+	}
+}
+
+func TestTrackListConcurrentAccess(t *testing.T) {
+	tl := NewTrackList()
+	var wg sync.WaitGroup
+	for worker := 0; worker < 8; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 100; i++ {
+				id := tl.Append(upnpav.Item{Title: "track"})
+				_, _ = tl.Current()
+				_, _ = tl.Next()
+				tl.Skip()
+				_ = tl.SetCurrent(id)
+				tl.Remove(id)
+			}
+		}()
+	}
+	wg.Wait()
 }

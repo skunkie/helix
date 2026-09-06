@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -23,7 +24,7 @@ type (
 		order   []int
 		current int
 
-		mu sync.Mutex
+		mu sync.RWMutex
 	}
 
 	QueueItem struct {
@@ -39,8 +40,8 @@ func NewTrackList() *TrackList {
 }
 
 func (t *TrackList) Items() []QueueItem {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
 	var queueItems []QueueItem
 	for id, item := range t.items {
@@ -49,8 +50,8 @@ func (t *TrackList) Items() []QueueItem {
 	return queueItems
 }
 func (t *TrackList) Upcoming() []QueueItem {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
 	var queueItems []QueueItem
 	for _, id := range t.order[t.current:] {
@@ -59,8 +60,8 @@ func (t *TrackList) Upcoming() []QueueItem {
 	return queueItems
 }
 func (t *TrackList) History() []QueueItem {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
 	var queueItems []QueueItem
 	for _, id := range t.order[:t.current] {
@@ -87,6 +88,9 @@ func (t *TrackList) Append(item upnpav.Item) int {
 	return id
 }
 func (t *TrackList) SetCurrent(id int) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	for i := range t.order {
 		if t.order[i] == id {
 			t.current = i
@@ -115,20 +119,32 @@ func (t *TrackList) Remove(id int) {
 	delete(t.items, id)
 }
 func (t *TrackList) RemoveAll() {
-	t.items = nil
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.items = make(map[int]upnpav.Item)
 	t.order = nil
 	t.current = 0
 }
 
 func (t *TrackList) Skip() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	if t.current < len(t.order) {
 		t.current++
 	}
 }
 func (t *TrackList) Current() (upnpav.Item, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
 	return t.atIndex(t.current)
 }
 func (t *TrackList) Next() (upnpav.Item, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
 	return t.atIndex(t.current + 1)
 }
 func (t *TrackList) atIndex(i int) (upnpav.Item, bool) {
