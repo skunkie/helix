@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -48,7 +50,7 @@ func (mc *metadataCache) MetadataForPath(p string) (*Metadata, error) {
 	cacheEntry, ok := mc.metadataByPath[p]
 	mc.mu.RUnlock()
 
-	if ok && cacheEntry.mtime == mtime {
+	if ok && cacheEntry.mtime.Equal(mtime) {
 		return cacheEntry.metadata, nil
 	}
 
@@ -82,7 +84,7 @@ func (mc *metadataCache) MetadataForPaths(paths []string) []*Metadata {
 	mc.mu.Lock()
 	for i, p := range paths {
 		cacheEntry, ok := mc.metadataByPath[p]
-		if ok && cacheEntry.mtime == mtimes[i] {
+		if ok && cacheEntry.mtime.Equal(mtimes[i]) {
 			mds[i] = cacheEntry.metadata
 			continue
 		}
@@ -107,16 +109,22 @@ func (mc *metadataCache) MetadataForPaths(paths []string) []*Metadata {
 
 func (mc *metadataCache) Warm(basePath string) {
 	var wg sync.WaitGroup
+	workers := make(chan struct{}, max(1, runtime.GOMAXPROCS(0)))
 	_ = filepath.Walk(basePath, func(p string, fi os.FileInfo, err error) error {
+		if err != nil || fi == nil {
+			return nil
+		}
 		if fi.IsDir() {
 			return nil
 		}
 		if IsAudioOrVideo(fi.Name()) {
 			wg.Add(1)
-			go func() {
+			workers <- struct{}{}
+			go func(path string) {
 				defer wg.Done()
-				_, _ = mc.MetadataForPath(p)
-			}()
+				defer func() { <-workers }()
+				_, _ = mc.MetadataForPath(path)
+			}(p)
 		}
 		return nil
 	})
