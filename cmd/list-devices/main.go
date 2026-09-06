@@ -53,8 +53,8 @@ func main() {
 
 		sort.Slice(urns, func(i, j int) bool { return urns[i] < urns[j] })
 		for _, urn := range urns {
-			fmt.Fprintf(w, "%v\t%v\t%v\n", device.Name, device.UDN, urn)
+			_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", device.Name, device.UDN, urn)
 		}
 	}
-	w.Flush()
+	_ = w.Flush()
 }

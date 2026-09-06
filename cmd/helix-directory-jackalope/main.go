@@ -74,7 +74,7 @@ func main() {
 		log.AddField("listener", addr)
 		log.WithError(err).Fatal("could not create HTTP listener")
 	}
-	defer httpConn.Close()
+	defer func() { _ = httpConn.Close() }()
 
 	device := &upnp.Device{
 		Name:             friendlyName,
@@ -133,5 +133,5 @@ func main() {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 	upnp.NotifyByeBye(ctx, device, url, iface)
-	httpServer.Close()
+	_ = httpServer.Close()
 }
