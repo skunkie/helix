@@ -42,7 +42,7 @@ func (h SOAPHandler) getProtocolInfo(ctx context.Context, in []byte) ([]byte, er
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	sources, sinks, err := h.Interface.ProtocolInfo(ctx)
+	sources, sinks, err := h.ProtocolInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (h SOAPHandler) getCurrentConnectionIDs(ctx context.Context, in []byte) ([]
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	ids, err := h.Interface.CurrentConnectionIDs(ctx)
+	ids, err := h.CurrentConnectionIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (h SOAPHandler) getCurrentConnectionInfo(ctx context.Context, in []byte) ([
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	info, err := h.Interface.CurrentConnectionInfo(ctx, req.ConnectionID)
+	info, err := h.CurrentConnectionInfo(ctx, req.ConnectionID)
 	if err != nil {
 		return nil, err
 	}

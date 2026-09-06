@@ -72,7 +72,7 @@ func NewContentDirectory(basePath, baseURL string, metadataCache media.MetadataC
 }
 
 func (cd *contentDirectory) BrowseMetadata(ctx context.Context, id upnpav.ObjectID, _ xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, error) {
-	log, ctx := logger.FromContext(ctx)
+	log, _ := logger.FromContext(ctx)
 	log.AddField("jackalope.method", "BrowseMetadata")
 	log.AddField("object", id)
 
@@ -130,7 +130,7 @@ func (cd *contentDirectory) BrowseMetadata(ctx context.Context, id upnpav.Object
 }
 
 func (cd *contentDirectory) BrowseChildren(ctx context.Context, id upnpav.ObjectID, startingIndex, requestedCount uint, sortCriteria xmltypes.CommaSeparatedStrings) (*upnpav.DIDLLite, uint, error) {
-	log, ctx := logger.FromContext(ctx)
+	log, _ := logger.FromContext(ctx)
 	log.AddField("jackalope.method", "BrowseChildren")
 	log.AddField("object", id)
 
@@ -352,7 +352,7 @@ func (cd *contentDirectory) uri(p string) string {
 	relPath, _ := filepath.Rel(cd.basePath, p)
 	uri.Path = path.Join(uri.Path, relPath)
 	// TODO: figure out what's actually going wrong here.
-	return strings.Replace((&uri).String(), "&", "%26", -1)
+	return strings.ReplaceAll((&uri).String(), "&", "%26")
 }
 func objectIDForPath(basePath, p string) upnpav.ObjectID {
 	if relPath, err := filepath.Rel(basePath, p); err == nil && relPath != "." {

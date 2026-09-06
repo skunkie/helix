@@ -108,9 +108,9 @@ type (
 	realFS struct{}
 )
 
-func (_ realFS) Stat(p string) (os.FileInfo, error) {
+func (realFS) Stat(p string) (os.FileInfo, error) {
 	return os.Stat(p)
 }
-func (_ realFS) List(p string) ([]os.DirEntry, error) {
+func (realFS) List(p string) ([]os.DirEntry, error) {
 	return os.ReadDir(p)
 }

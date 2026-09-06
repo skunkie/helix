@@ -26,10 +26,6 @@ const (
 	openParenthesis
 	closeParenthesis
 
-	// LogOp.
-	and
-	or
-
 	// BinOp.
 	equal
 	notEqual

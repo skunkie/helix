@@ -131,10 +131,10 @@ func (mc *metadataCache) Warm(basePath string) {
 	wg.Wait()
 }
 
-func (_ NoOpCache) MetadataForPath(p string) (*Metadata, error) {
+func (NoOpCache) MetadataForPath(p string) (*Metadata, error) {
 	return MetadataForPath(p)
 }
-func (_ NoOpCache) MetadataForPaths(paths []string) []*Metadata {
+func (NoOpCache) MetadataForPaths(paths []string) []*Metadata {
 	var mds []*Metadata
 	for _, p := range paths {
 		md, _ := MetadataForPath(p)
@@ -142,4 +142,4 @@ func (_ NoOpCache) MetadataForPaths(paths []string) []*Metadata {
 	}
 	return mds
 }
-func (_ NoOpCache) Warm(p string) {}
+func (NoOpCache) Warm(p string) {}

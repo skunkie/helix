@@ -119,10 +119,6 @@ type (
 		XMLName    xml.Name `xml:"urn:schemas-upnp-org:service:AVTransport:1 Pause"`
 		InstanceID int      `xml:"InstanceID" scpd:"A_ARG_TYPE_InstanceID,ui4"`
 	}
-	pauseResponse struct {
-		XMLName xml.Name `xml:"urn:schemas-upnp-org:service:AVTransport:1 PauseResponse"`
-	}
-
 	recordRequest struct {
 		XMLName    xml.Name `xml:"urn:schemas-upnp-org:service:AVTransport:1 Record"`
 		InstanceID int      `xml:"InstanceID" scpd:"A_ARG_TYPE_InstanceID,ui4"`

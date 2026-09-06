@@ -22,10 +22,10 @@ func TestFromAction(t *testing.T) {
 		{
 			name: "GetFoo",
 			req: struct {
-				XMLName xml.Name `xml"GetFoo"`
+				XMLName xml.Name `xml:"GetFoo"`
 			}{},
 			rsp: struct {
-				XMLName xml.Name `xml"GetFooResponse"`
+				XMLName xml.Name `xml:"GetFooResponse"`
 				Foo     string   `xml:"foo" scpd:"A_ARG_TYPE_Foo,string"`
 			}{},
 			want: Document{
@@ -51,11 +51,11 @@ func TestFromAction(t *testing.T) {
 		{
 			name: "GetFoo",
 			req: struct {
-				XMLName xml.Name `xml"GetFoo"`
+				XMLName xml.Name `xml:"GetFoo"`
 				Foo     string   `xml:"foo" scpd:"A_ARG_TYPE_Foo,ui4"`
 			}{},
 			rsp: struct {
-				XMLName xml.Name `xml"GetFooResponse"`
+				XMLName xml.Name `xml:"GetFooResponse"`
 				Foo     string   `xml:"foo" scpd:"A_ARG_TYPE_Foo,ui4"`
 			}{},
 			want: Document{
@@ -86,11 +86,11 @@ func TestFromAction(t *testing.T) {
 		{
 			name: "GetFoo",
 			req: struct {
-				XMLName xml.Name `xml"GetFoo"`
+				XMLName xml.Name `xml:"GetFoo"`
 				Foo     string   `xml:"foo" scpd:"A_ARG_TYPE_Foo,string,foo|bar"`
 			}{},
 			rsp: struct {
-				XMLName xml.Name `xml"GetFooResponse"`
+				XMLName xml.Name `xml:"GetFooResponse"`
 			}{},
 			want: Document{
 				SpecVersion: Version,
@@ -121,12 +121,12 @@ func TestFromAction(t *testing.T) {
 		{
 			name: "GetFoo",
 			req: struct {
-				XMLName xml.Name `xml"GetFoo"`
+				XMLName xml.Name `xml:"GetFoo"`
 				Foo     string   `xml:"foo" scpd:"A_ARG_TYPE_Foo,ui4,min=2"`
 				Bar     string   `xml:"bar" scpd:"A_ARG_TYPE_Bar,i4,min=2,max=3,step=4"`
 			}{},
 			rsp: struct {
-				XMLName xml.Name `xml"GetFooResponse"`
+				XMLName xml.Name `xml:"GetFooResponse"`
 			}{},
 			want: Document{
 				SpecVersion: Version,
@@ -168,11 +168,11 @@ func TestFromAction(t *testing.T) {
 		{
 			name: "GetFoo",
 			req: struct {
-				XMLName xml.Name `xml"GetFoo"`
+				XMLName xml.Name `xml:"GetFoo"`
 				Foo     string   `xml:"foo" scpd:"A_ARG_TYPE_Foo,string"`
 			}{},
 			rsp: struct {
-				XMLName xml.Name `xml"GetFooResponse"`
+				XMLName xml.Name `xml:"GetFooResponse"`
 				Foo     string   `xml:"foo" scpd:"A_ARG_TYPE_Foo,ui4"`
 			}{},
 			wantErr: true,

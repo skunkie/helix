@@ -41,7 +41,7 @@ func (h SOAPHandler) isAuthorized(ctx context.Context, in []byte) ([]byte, error
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	result, err := h.Interface.IsAuthorized(ctx, req.DeviceID)
+	result, err := h.IsAuthorized(ctx, req.DeviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (h SOAPHandler) registerDevice(ctx context.Context, in []byte) ([]byte, err
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	respMsg, err := h.Interface.RegisterDevice(ctx, req.RegistrationReqMsg)
+	respMsg, err := h.RegisterDevice(ctx, req.RegistrationReqMsg)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (h SOAPHandler) isValid(ctx context.Context, in []byte) ([]byte, error) {
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	result, err := h.Interface.IsValid(ctx, req.DeviceID)
+	result, err := h.IsValid(ctx, req.DeviceID)
 	if err != nil {
 		return nil, err
 	}

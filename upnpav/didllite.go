@@ -273,7 +273,7 @@ func (d DIDLLite) String() string {
 }
 
 func (ed EncodedDIDLLite) MarshalText() ([]byte, error) {
-	return []byte(ed.DIDLLite.String()), nil
+	return []byte(ed.String()), nil
 }
 func (ed *EncodedDIDLLite) UnmarshalText(raw []byte) error {
 	dd, err := ParseDIDLLite(string(raw))

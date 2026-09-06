@@ -53,7 +53,7 @@ func (h SOAPHandler) getSearchCapabilities(ctx context.Context, in []byte) ([]by
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	caps, err := h.Interface.SearchCapabilities(ctx)
+	caps, err := h.SearchCapabilities(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (h SOAPHandler) getSortCapabilities(ctx context.Context, in []byte) ([]byte
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	caps, err := h.Interface.SortCapabilities(ctx)
+	caps, err := h.SortCapabilities(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (h SOAPHandler) getSystemUpdateID(ctx context.Context, in []byte) ([]byte, 
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	id, err := h.Interface.SystemUpdateID(ctx)
+	id, err := h.SystemUpdateID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (h SOAPHandler) xGetFeatureList(ctx context.Context, in []byte) ([]byte, er
 		return nil, upnpav.ErrInvalidArgs
 	}
 
-	featureList, err := h.Interface.XGetFeatureList(ctx)
+	featureList, err := h.XGetFeatureList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +162,12 @@ func (h SOAPHandler) browse(ctx context.Context, in []byte) ([]byte, error) {
 	var totalMatches uint
 	switch req.BrowseFlag {
 	case browseMetadata:
-		didllite, err = h.Interface.BrowseMetadata(ctx, req.Object, req.SortCriteria)
+		didllite, err = h.BrowseMetadata(ctx, req.Object, req.SortCriteria)
 		if didllite != nil {
 			totalMatches = uint(len(didllite.Containers) + len(didllite.Items))
 		}
 	case browseChildren:
-		didllite, totalMatches, err = h.Interface.BrowseChildren(ctx, req.Object, req.StartingIndex, req.RequestedCount, req.SortCriteria)
+		didllite, totalMatches, err = h.BrowseChildren(ctx, req.Object, req.StartingIndex, req.RequestedCount, req.SortCriteria)
 	default:
 		return nil, upnpav.ErrInvalidArgs
 	}
@@ -180,7 +180,7 @@ func (h SOAPHandler) browse(ctx context.Context, in []byte) ([]byte, error) {
 		rsp.Result = upnpav.EncodedDIDLLite{DIDLLite: *didllite}
 		rsp.NumberReturned = uint(len(didllite.Containers) + len(didllite.Items))
 		rsp.TotalMatches = totalMatches
-		updateID, err := h.Interface.SystemUpdateID(ctx)
+		updateID, err := h.SystemUpdateID(ctx)
 		if err != nil {
 			log.WithError(err).Warning("could not get system update ID")
 		} else {
@@ -212,7 +212,7 @@ func (h SOAPHandler) search(ctx context.Context, in []byte) ([]byte, error) {
 		return nil, fmt.Errorf("could not parse search query: %v", err)
 	}
 
-	didllite, totalMatches, err := h.Interface.Search(ctx, req.Container, criteria, req.StartingIndex, req.RequestedCount, req.SortCriteria)
+	didllite, totalMatches, err := h.Search(ctx, req.Container, criteria, req.StartingIndex, req.RequestedCount, req.SortCriteria)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (h SOAPHandler) search(ctx context.Context, in []byte) ([]byte, error) {
 		rsp.Result = upnpav.EncodedDIDLLite{DIDLLite: *didllite}
 		rsp.NumberReturned = uint(len(didllite.Containers) + len(didllite.Items))
 		rsp.TotalMatches = totalMatches
-		updateID, err := h.Interface.SystemUpdateID(ctx)
+		updateID, err := h.SystemUpdateID(ctx)
 		if err != nil {
 			log.WithError(err).Warning("could not get system update ID")
 		} else {
