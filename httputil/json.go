@@ -17,5 +17,5 @@ func MustWriteJSON(w http.ResponseWriter, data interface{}) {
 	if err != nil {
 		panic(fmt.Sprintf("could not marshal JSON: %v", err))
 	}
-	w.Write(blob)
+	_, _ = w.Write(blob)
 }

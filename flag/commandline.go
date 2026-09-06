@@ -13,7 +13,7 @@ import (
 var (
 	CommandLine = NewFlagSet(os.Args[0], ExitOnError)
 	Usage       = func() {
-		fmt.Fprintf(CommandLine.Output(), "Usage of %s:\n", os.Args[0])
+		_, _ = fmt.Fprintf(CommandLine.Output(), "Usage of %s:\n", os.Args[0])
 		CommandLine.PrintDefaults()
 	}
 )

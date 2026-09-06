@@ -34,7 +34,7 @@ func SuitableIP(iface *net.Interface) (net.IP, error) {
 
 		// Default IP must be a "LAN IP".
 		// TODO: support 172.16.0.0/12
-		if iface == nil && !(ip[0] == 10 || (ip[0] == 192 && ip[1] == 168)) {
+		if iface == nil && ip[0] != 10 && (ip[0] != 192 || ip[1] != 168) {
 			err = errors.New("interface has no Private IPv4 addresses")
 			continue
 		}

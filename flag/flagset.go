@@ -35,11 +35,11 @@ func (f *FlagSet) Parse(arguments []string) error {
 
 	for _, customFlag := range f.customFlags {
 		if err := customFlag(); err != nil {
-			switch f.FlagSet.ErrorHandling() {
+			switch f.ErrorHandling() {
 			case flag.ContinueOnError:
 				return err
 			case flag.ExitOnError:
-				fmt.Fprintf(os.Stdout, "%v\n\n", err)
+				_, _ = fmt.Fprintf(os.Stdout, "%v\n\n", err)
 				f.Usage()
 				os.Exit(2)
 			case flag.PanicOnError:
