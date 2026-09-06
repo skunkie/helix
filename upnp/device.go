@@ -81,6 +81,7 @@ func newDevice(manifestURL *url.URL, manifest ssdp.Document) (*Device, error) {
 	d := &Device{
 		Name:             manifest.Device.FriendlyName,
 		UDN:              manifest.Device.UDN,
+		DeviceType:       DeviceType(manifest.Device.DeviceType),
 		Manufacturer:     manifest.Device.Manufacturer,
 		ManufacturerURL:  manifest.Device.ManufacturerURL,
 		ModelDescription: manifest.Device.ModelDescription,
@@ -89,14 +90,22 @@ func newDevice(manifestURL *url.URL, manifest ssdp.Document) (*Device, error) {
 		ModelURL:         manifest.Device.ModelURL,
 		SerialNumber:     manifest.Device.SerialNumber,
 	}
+	if manifest.Device.IconList != nil {
+		for _, manifestIcon := range manifest.Device.IconList.Icons {
+			iconURL, err := resolveReference(manifestURL, manifestIcon.URL)
+			if err != nil {
+				return nil, fmt.Errorf("could not resolve icon URL: %w", err)
+			}
+			icon := iconFromSSDPIcon(manifestIcon)
+			icon.URL = iconURL.String()
+			d.Icons = append(d.Icons, icon)
+		}
+	}
 
 	if manifest.Device.PresentationURL != "" {
-		presentationURL, _ := url.Parse(manifest.Device.PresentationURL)
-		if presentationURL.Host == "" {
-			presentationURL.Host = manifestURL.Host
-		}
-		if presentationURL.Scheme == "" {
-			presentationURL.Scheme = manifestURL.Scheme
+		presentationURL, err := resolveReference(manifestURL, manifest.Device.PresentationURL)
+		if err != nil {
+			return nil, fmt.Errorf("could not resolve presentation URL: %w", err)
 		}
 		d.PresentationURL = presentationURL.String()
 	}
@@ -104,14 +113,25 @@ func newDevice(manifestURL *url.URL, manifest ssdp.Document) (*Device, error) {
 	d.serviceByURN = map[URN]service{}
 	for _, s := range manifest.Device.ServiceList.Services {
 		// TODO: get the actual SCPD.
-		serviceURL := *manifestURL
-		serviceURL.Path = s.ControlURL
+		serviceURL, err := resolveReference(manifestURL, s.ControlURL)
+		if err != nil {
+			return nil, fmt.Errorf("could not resolve control URL for %s: %w", s.ServiceType, err)
+		}
 		d.serviceByURN[URN(s.ServiceType)] = service{
-			SOAPInterface: soap.NewClient(&serviceURL),
+			ID:            ServiceID(s.ServiceID),
+			SOAPInterface: soap.NewClient(serviceURL),
 		}
 	}
 
 	return d, nil
+}
+
+func resolveReference(base *url.URL, raw string) (*url.URL, error) {
+	reference, err := url.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	return base.ResolveReference(reference), nil
 }
 
 // Services lists URNs advertised by the device.
@@ -129,12 +149,6 @@ func (d *Device) Services() []URN {
 		urns = append(urns, urn)
 	}
 	return urns
-}
-func (d *Device) allURNs() []URN {
-	if d == nil {
-		return nil
-	}
-	return append(d.Services(), URN(d.DeviceType), RootDevice)
 }
 
 // SOAPClient returns a SOAP client for the given URN, and whether or not that client exists.
@@ -173,8 +187,8 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 			if err != nil {
 				panic(fmt.Sprintf("could not marshal manifest: %v", err))
 			}
-			fmt.Fprint(w, xml.Header)
-			w.Write(bytes)
+			_, _ = fmt.Fprint(w, xml.Header)
+			_, _ = w.Write(bytes)
 			log.Debug("served SSDP manifest")
 			return
 		}
@@ -187,8 +201,8 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 				if err != nil {
 					panic(fmt.Sprintf("could not marshal SCPD for %v: %v", urn, err))
 				}
-				fmt.Fprint(w, xml.Header)
-				w.Write(bytes)
+				_, _ = fmt.Fprint(w, xml.Header)
+				_, _ = w.Write(bytes)
 				log.Debug("served SCPD")
 				return
 
@@ -199,7 +213,7 @@ func (d *Device) HTTPHandler(basePath string) http.Handler {
 					http.Error(w, "could not read request body", http.StatusInternalServerError)
 					return
 				}
-				r.Body.Close()
+				_ = r.Body.Close()
 				r.Body = io.NopCloser(bytes.NewReader(body))
 
 				log.WithField("body", string(body)).Debug("SOAP request")

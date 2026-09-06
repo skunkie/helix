@@ -9,6 +9,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -108,6 +109,45 @@ func TestDeviceAccessors(t *testing.T) {
 	d.IncrementBootID()
 	if d.BootID() != 43 {
 		t.Errorf("BootID() after Increment = %d, want 43", d.BootID())
+	}
+}
+
+func TestNewDeviceResolvesRelativeURLs(t *testing.T) {
+	requests := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.URL.Path
+		_, _ = w.Write([]byte(`<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><Result>ok</Result></s:Body></s:Envelope>`))
+	}))
+	defer server.Close()
+
+	manifestURL, err := url.Parse(server.URL + "/device/description.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const serviceURN = URN("urn:schemas-upnp-org:service:Test:1")
+	device, err := newDevice(manifestURL, ssdp.Document{Device: ssdp.Device{
+		PresentationURL: "ui",
+		ServiceList: ssdp.ServiceList{Services: []ssdp.Service{{
+			ServiceType: string(serviceURN),
+			ServiceID:   "urn:upnp-org:serviceId:Test",
+			ControlURL:  "control",
+		}}},
+	}})
+	if err != nil {
+		t.Fatalf("newDevice failed: %v", err)
+	}
+	if want := server.URL + "/device/ui"; device.PresentationURL != want {
+		t.Fatalf("PresentationURL = %q, want %q", device.PresentationURL, want)
+	}
+	client, ok := device.SOAPInterface(serviceURN)
+	if !ok {
+		t.Fatal("missing SOAP interface")
+	}
+	if _, err := client.Call(context.Background(), string(serviceURN), "Test", nil); err != nil {
+		t.Fatalf("SOAP call failed: %v", err)
+	}
+	if got := <-requests; got != "/device/control" {
+		t.Fatalf("request path = %q, want /device/control", got)
 	}
 }
 

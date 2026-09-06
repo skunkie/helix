@@ -8,6 +8,7 @@ package upnp
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -71,15 +72,43 @@ func DiscoverURLs(ctx context.Context, urn URN, iface *net.Interface) ([]*url.UR
 // It returns all valid URLs it finds, a slice of errors from invalid SSDP responses or UPnP device manifests, and an error with the actual connection itself.
 func DiscoverDevices(ctx context.Context, urn URN, iface *net.Interface) ([]*Device, []error, error) {
 	urls, errs, err := DiscoverURLs(ctx, urn, iface)
+	if errors.Is(err, context.Canceled) {
+		return nil, errs, err
+	}
 
 	var devices []*Device
 	for _, manifestURL := range urls {
-		rsp, err := http.Get(manifestURL.String())
+		// The discovery deadline is also the SSDP response collection window and
+		// has normally elapsed by this point. Give each manifest fetch its own
+		// bounded context while retaining values from the caller.
+		manifestCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), discoveryTimeout)
+		req, err := http.NewRequestWithContext(manifestCtx, http.MethodGet, manifestURL.String(), http.NoBody)
 		if err != nil {
+			cancel()
+			errs = append(errs, fmt.Errorf("could not create manifest request for %v: %w", manifestURL, err))
+			continue
+		}
+		rsp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			cancel()
 			errs = append(errs, fmt.Errorf("could not GET manifest %v: %w", manifestURL, err))
 			continue
 		}
-		bytes, _ := io.ReadAll(rsp.Body)
+		bytes, readErr := io.ReadAll(rsp.Body)
+		closeErr := rsp.Body.Close()
+		cancel()
+		if readErr != nil {
+			errs = append(errs, fmt.Errorf("could not read manifest %v: %w", manifestURL, readErr))
+			continue
+		}
+		if closeErr != nil {
+			errs = append(errs, fmt.Errorf("could not close manifest response %v: %w", manifestURL, closeErr))
+			continue
+		}
+		if rsp.StatusCode < http.StatusOK || rsp.StatusCode >= http.StatusMultipleChoices {
+			errs = append(errs, fmt.Errorf("could not GET manifest %v: HTTP status %s", manifestURL, rsp.Status))
+			continue
+		}
 
 		manifest := ssdp.Document{}
 		if err := xml.Unmarshal(bytes, &manifest); err != nil {
@@ -99,6 +128,9 @@ func DiscoverDevices(ctx context.Context, urn URN, iface *net.Interface) ([]*Dev
 
 // BroadcastDevice broadcasts the presence of a UPnP Device, with its SSDP/SCPD served via HTTP at addr.
 func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Interface, notifyInterval time.Duration) error {
+	if notifyInterval <= 0 {
+		return fmt.Errorf("notify interval must be positive")
+	}
 	conn, err := net.ListenMulticastUDP("udp", iface, ssdpBroadcastAddr)
 	if err != nil {
 		return fmt.Errorf("could not listen on %v: %v", ssdpBroadcastAddr, err)
@@ -112,7 +144,7 @@ func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Inte
 	var once sync.Once
 	closeConn := func() {
 		once.Do(func() {
-			conn.Close()
+			_ = conn.Close()
 		})
 	}
 	defer closeConn()
