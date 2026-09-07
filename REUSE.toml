@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 TorrPlay
+#
+# SPDX-License-Identifier: MIT
+
+version = 1
+SPDX-PackageName = "Helix"
+SPDX-PackageSupplier = "Ethel Morgan <eth@ethulhu.co.uk>"
+SPDX-PackageDownloadLocation = "https://github.com/ethulhu/helix"
+
+[[annotations]]
+path = ["go.sum", ".pre-commit-config.yaml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "n/a"
+SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = ["cmd/helix-player/static/helix-trans.png", "helix-trans.svg"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2020 Ethel Morgan"
+SPDX-License-Identifier = "MIT"
