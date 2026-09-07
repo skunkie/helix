@@ -5,7 +5,7 @@
 /*
 Package flag wraps Go's built-in flag package, with the addition of idiomatic custom flags.
 
-Custom Flags
+# Custom Flags
 
 Custom flags are wrappers around Go's built-in string flags, with a parser
 func. They can be used to parse custom flag types, or to have custom flag
@@ -28,6 +28,5 @@ validators, while keeping the parsing & validation with the flag's definition.
 		urlFlag := (*urlFlag).(*url.URL)
 		outputFlag := (*outputFlag).(string)
 	}
-
 */
 package flag

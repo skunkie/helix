@@ -4,46 +4,46 @@
 
 // Package soap is a minimal SOAP RPC client.
 //
-// Skeleton Request
+// # Skeleton Request
 //
 // A SOAP request, `encodingStyle` is required. For example,
 //
-//   <?xml version="1.0"?>
-//   <soap:Envelope
-//     xmlns:soap="http://www.w3.org/2003/05/soap-envelope/"
-//     soap:encodingStyle="http://www.w3.org/2003/05/soap-encoding">
-//     <soap:Header>
-//       ...
-//     </soap:Header>
-//     <soap:Body>
-//       ...
-//       <soap:Fault>
-//         <faultcode>soap:Client</faultcode>
-//         <faultstring>Ewwow!</faultstring>
-//         <detail><UwuError>o noes!</UwuError></detail>
-//       </soap:Fault>
-//     </soap:Body>
-//   </soap:Envelope>
+//	<?xml version="1.0"?>
+//	<soap:Envelope
+//	  xmlns:soap="http://www.w3.org/2003/05/soap-envelope/"
+//	  soap:encodingStyle="http://www.w3.org/2003/05/soap-encoding">
+//	  <soap:Header>
+//	    ...
+//	  </soap:Header>
+//	  <soap:Body>
+//	    ...
+//	    <soap:Fault>
+//	      <faultcode>soap:Client</faultcode>
+//	      <faultstring>Ewwow!</faultstring>
+//	      <detail><UwuError>o noes!</UwuError></detail>
+//	    </soap:Fault>
+//	  </soap:Body>
+//	</soap:Envelope>
 //
 // A <faultcode> looks like:
 //
 //   - VersionMismatch:  Found an invalid namespace for the SOAP Envelope
-//                       element.
+//     element.
 //   - MustUnderstand:   An immediate child element of the Header element, with
-//                       the mustUnderstand attribute set to "1", was not
-//                       understood.
+//     the mustUnderstand attribute set to "1", was not
+//     understood.
 //   - Client:           The message was incorrectly formed or contained
-//                       incorrect information.
+//     incorrect information.
 //   - Server:           There was a problem with the server so the message
-//                       could not proceed.
+//     could not proceed.
 //
 // All the elements above are declared in the default namespace for the SOAP envelope:
 //
-//   http://www.w3.org/2003/05/soap-envelope/
+//	http://www.w3.org/2003/05/soap-envelope/
 //
 // and the default namespace for SOAP encoding and data types is:
 //
-//   http://www.w3.org/2003/05/soap-encoding
+//	http://www.w3.org/2003/05/soap-encoding
 //
 // Links
 //

@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -139,7 +140,7 @@ func (ffi fakeFileInfo) Name() string {
 }
 
 type fakeDirEntry struct {
-	entryName string
+	entryName  string
 	entryIsDir bool
 }
 
