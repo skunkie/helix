@@ -264,7 +264,7 @@ func (cd *contentDirectory) containersForPaths(parent query.Expr, paths ...strin
 	for _, tag := range tags {
 		atom, err := query.Parse(tag)
 		if err != nil {
-			return nil, fmt.Errorf("could not parse query for tag %q: %v", tag, err)
+			return nil, fmt.Errorf("could not parse query for tag %q: %w", tag, err)
 		}
 
 		andedQuery := atom
@@ -278,7 +278,7 @@ func (cd *contentDirectory) containersForPaths(parent query.Expr, paths ...strin
 
 		container, err := cd.containerForQuery(parent, andedQuery)
 		if err != nil {
-			return nil, fmt.Errorf("could not describe container for tag %q: %v", tag, err)
+			return nil, fmt.Errorf("could not describe container for tag %q: %w", tag, err)
 		}
 		containers = append(containers, container)
 	}

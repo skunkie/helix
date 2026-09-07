@@ -32,10 +32,8 @@ func FormValues(keysAndValues ...string) mux.MatcherFunc {
 				}
 				varKey := value[1 : len(value)-1]
 				rm.Vars[varKey] = formValue
-			} else {
-				if formValue != value {
-					return false
-				}
+			} else if formValue != value {
+				return false
 			}
 		}
 		return true

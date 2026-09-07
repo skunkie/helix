@@ -115,7 +115,7 @@ func TestHandleDiscover(t *testing.T) {
 				UDN:        "device-id",
 				bootID:     123,
 				serviceByURN: map[URN]service{
-					"service-urn": service{},
+					"service-urn": {},
 				},
 			},
 			url: "http://1.2.3.4:8000/",
@@ -146,7 +146,7 @@ func TestHandleDiscover(t *testing.T) {
 				DeviceType: DeviceType("meowpurr"),
 				UDN:        "foobar",
 				serviceByURN: map[URN]service{
-					"tweedle": service{},
+					"tweedle": {},
 				},
 			},
 			url:  "http://1.2.3.4:8000/",

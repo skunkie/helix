@@ -112,7 +112,7 @@ func (mc *metadataCache) Warm(basePath string) {
 	workers := make(chan struct{}, max(1, runtime.GOMAXPROCS(0)))
 	_ = filepath.Walk(basePath, func(p string, fi os.FileInfo, err error) error {
 		if err != nil || fi == nil {
-			return nil
+			return nil //nolint:nilerr // Skip inaccessible entries while warming the best-effort cache.
 		}
 		if fi.IsDir() {
 			return nil

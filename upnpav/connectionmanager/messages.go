@@ -115,10 +115,10 @@ func (cspi *commaSeparatedProtocolInfos) UnmarshalText(raw []byte) error {
 	}
 
 	var protocolInfos []upnpav.ProtocolInfo
-	for _, p := range strings.Split(string(raw), ",") {
+	for p := range strings.SplitSeq(string(raw), ",") {
 		protocolInfo, err := upnpav.ParseProtocolInfo(p)
 		if err != nil {
-			return fmt.Errorf("could not parse ProtocolInfo %q: %v", p, err)
+			return fmt.Errorf("could not parse ProtocolInfo %q: %w", p, err)
 		}
 		protocolInfos = append(protocolInfos, protocolInfo)
 	}

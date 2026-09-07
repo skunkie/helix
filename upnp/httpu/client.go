@@ -66,6 +66,8 @@ func udpIPv4AddrForInterface(iface *net.Interface) (*net.UDPAddr, error) {
 // It always returns any valid HTTP responses it has seen, regardless of eventual errors.
 // The error slice is errors with malformed responses.
 // The single error is an error with the connection itself.
+//
+//nolint:bodyclose // Response bodies are returned to the caller, which owns closing them.
 func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response, []error, error) {
 	var listenAddr *net.UDPAddr
 	if iface != nil {
@@ -103,7 +105,7 @@ func Do(req *http.Request, repeats int, iface *net.Interface) ([]*http.Response,
 
 	packet := SerializeRequest(req)
 
-	for i := 0; i < repeats; i++ {
+	for range repeats {
 		if _, err := conn.WriteTo(packet, addr); err != nil {
 			return nil, nil, fmt.Errorf("could not send discover packet: %w", err)
 		}
@@ -184,7 +186,7 @@ func Send(req *http.Request, repeats int, iface *net.Interface) error {
 
 	packet := SerializeRequest(req)
 
-	for i := 0; i < repeats; i++ {
+	for range repeats {
 		if _, err := conn.WriteTo(packet, addr); err != nil {
 			if ctxErr := req.Context().Err(); ctxErr != nil {
 				return ctxErr

@@ -35,8 +35,8 @@ func main() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
 	urls, errs, err := upnp.DiscoverURLs(ctx, upnp.All, iface)
+	cancel()
 	if err != nil {
 		log.Fatalf("could not discover URLs: %v", err)
 	}

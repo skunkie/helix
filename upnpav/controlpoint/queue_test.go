@@ -124,11 +124,11 @@ func TestTrackListAppendAfterRemoveAll(t *testing.T) {
 func TestTrackListConcurrentAccess(t *testing.T) {
 	tl := NewTrackList()
 	var wg sync.WaitGroup
-	for worker := 0; worker < 8; worker++ {
+	for range 8 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for i := 0; i < 100; i++ {
+			for range 100 {
 				id := tl.Append(upnpav.Item{Title: "track"})
 				_, _ = tl.Current()
 				_, _ = tl.Next()

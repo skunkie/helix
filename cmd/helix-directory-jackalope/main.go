@@ -112,7 +112,10 @@ func main() {
 	mux.Handle("/objects/", http.StripPrefix("/objects/", http.FileServer(http.Dir(basePath))))
 	mux.Handle("/upnp/", http.StripPrefix("/upnp", device.HTTPHandler("/upnp/")))
 
-	httpServer := &http.Server{Handler: mux}
+	httpServer := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 	go func() {
 		log := log.WithField("http.listener", httpConn.Addr())
 		log.Info("serving HTTP")

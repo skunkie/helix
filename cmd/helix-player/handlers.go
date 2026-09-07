@@ -206,7 +206,7 @@ func proxyDo(ctx context.Context, w http.ResponseWriter, method, uri string) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	rsp, err := http.DefaultClient.Do(req)
+	rsp, err := http.DefaultClient.Do(req) //nolint:gosec // Proxying the selected UPnP resource URI is this endpoint's purpose.
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -93,6 +93,7 @@ type mockSSDP struct {
 }
 
 func newMockSSDP(t *testing.T, urn URN, udn, location string) *mockSSDP {
+	t.Helper()
 	addr, err := net.ResolveUDPAddr("udp4", "239.255.255.250:1900")
 	if err != nil {
 		t.Fatalf("could not resolve SSDP address: %v", err)
@@ -162,6 +163,7 @@ type mockHTTP struct {
 }
 
 func newMockHTTP(t *testing.T, addr string, urn URN, udn string) *mockHTTP {
+	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, `<root xmlns="urn:schemas-upnp-org:device-1-0"><device><deviceType>%s</deviceType><UDN>%s</UDN></device></root>`, urn, udn)
@@ -182,7 +184,7 @@ func (m *mockHTTP) Close() {
 }
 
 func getHeader(msg, header string) string {
-	for _, line := range strings.Split(msg, "\r\n") {
+	for line := range strings.SplitSeq(msg, "\r\n") {
 		if strings.HasPrefix(strings.ToUpper(line), strings.ToUpper(header)+":") {
 			return strings.TrimSpace(line[len(header)+1:])
 		}

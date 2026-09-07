@@ -37,7 +37,7 @@ USN: uuid:6006::upnp:rootdevice
 
 	for i, tt := range tests {
 		var want []byte
-		for _, line := range strings.Split(tt.want, "\n") {
+		for line := range strings.SplitSeq(tt.want, "\n") {
 			want = append(want, []byte(line)...)
 			want = append(want, []byte("\r\n")...)
 		}

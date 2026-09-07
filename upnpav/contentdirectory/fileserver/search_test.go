@@ -6,6 +6,7 @@ package fileserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -53,7 +54,7 @@ func (m *mockMetadataCache) MetadataForPath(p string) (*media.Metadata, error) {
 func TestSearchSortsBeforePagination(t *testing.T) {
 	tmpdir := t.TempDir()
 	for _, file := range []string{"charlie.mp3", "alpha.mp3", "bravo.mp3"} {
-		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0600); err != nil {
 			t.Fatalf("creating dummy file: %v", err)
 		}
 	}
@@ -80,7 +81,7 @@ func TestSearchSortsBeforePagination(t *testing.T) {
 	}
 
 	_, _, err = cd.Search(context.Background(), "0", criteria, 0, 0, xmltypes.CommaSeparatedStrings{"+dc:date"})
-	if err != contentdirectory.ErrInvalidSortCriteria {
+	if !errors.Is(err, contentdirectory.ErrInvalidSortCriteria) {
 		t.Fatalf("unsupported sort error = %v, want %v", err, contentdirectory.ErrInvalidSortCriteria)
 	}
 }
@@ -93,7 +94,7 @@ func TestBrowseChildrenSortsSupportedObjects(t *testing.T) {
 		}
 	}
 	for _, file := range []string{"delta.mp3", "bravo.mp3"} {
-		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0600); err != nil {
 			t.Fatalf("creating dummy file: %v", err)
 		}
 	}
@@ -119,7 +120,7 @@ func TestBrowseChildrenSortsSupportedObjects(t *testing.T) {
 	}
 
 	_, _, err = cd.BrowseChildren(context.Background(), contentdirectory.Root, 0, 0, xmltypes.CommaSeparatedStrings{"+dc:date"})
-	if err != contentdirectory.ErrInvalidSortCriteria {
+	if !errors.Is(err, contentdirectory.ErrInvalidSortCriteria) {
 		t.Fatalf("unsupported sort error = %v, want %v", err, contentdirectory.ErrInvalidSortCriteria)
 	}
 }
@@ -165,7 +166,7 @@ func TestSearch(t *testing.T) {
 		"not-media.txt",
 	}
 	for _, file := range files {
-		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpdir, file), []byte("dummy content"), 0600); err != nil {
 			t.Fatalf("creating dummy file: %v", err)
 		}
 	}

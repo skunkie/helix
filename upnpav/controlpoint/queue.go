@@ -76,7 +76,7 @@ func (t *TrackList) Append(item upnpav.Item) int {
 
 	var id int
 	for {
-		id = int(rand.Int31())
+		id = int(rand.Int31()) //nolint:gosec // Queue identifiers do not require cryptographic randomness.
 		// id MUST NOT be 0.
 		if _, alreadyExists := t.items[id]; !alreadyExists && id != 0 {
 			break

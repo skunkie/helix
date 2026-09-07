@@ -77,7 +77,7 @@ func NewContentDirectory(basePath, baseURL string, metadataCache media.MetadataC
 		baseURL:  maybeURL,
 
 		metadataCache:  metadataCache,
-		systemUpdateID: uint(time.Now().Unix()),
+		systemUpdateID: uint(time.Now().Unix()), //nolint:gosec // Current Unix timestamps are valid UPnP update identifiers on supported platforms.
 	}
 
 	go func() {
@@ -270,7 +270,10 @@ func (cd *ContentDirectory) Search(ctx context.Context, id upnpav.ObjectID, crit
 		}
 
 		items, err := cd.itemsForPaths(p)
-		if err != nil || len(items) == 0 {
+		if err != nil {
+			return nil //nolint:nilerr // Skip files whose optional metadata cannot be read during best-effort search.
+		}
+		if len(items) == 0 {
 			return nil
 		}
 		item := items[0]

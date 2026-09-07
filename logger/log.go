@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -7,6 +8,7 @@ package logger
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -102,9 +104,7 @@ func (l *logger) Fork(ctx context.Context) (Logger, context.Context) {
 	clone := &logger{
 		values: map[string]interface{}{},
 	}
-	for k, v := range l.values {
-		clone.values[k] = v
-	}
+	maps.Copy(clone.values, l.values)
 	return clone, context.WithValue(ctx, loggerKey, clone)
 }
 

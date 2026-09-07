@@ -54,10 +54,10 @@ func MetadataForPath(p string) (*Metadata, error) {
 
 	if _, err := exec.LookPath("ffprobe"); err != nil {
 		// ffprobe is not installed, so we can't get any more metadata.
-		return md, nil
+		return md, nil //nolint:nilerr // Missing optional ffprobe is not a metadata failure.
 	}
 
-	bytes, err := exec.Command("ffprobe", append(ffprobeArgs, p)...).Output()
+	bytes, err := exec.Command("ffprobe", append(ffprobeArgs, p)...).Output() //nolint:gosec // The media path is passed as one ffprobe argument without a shell.
 	if err != nil {
 		return md, fmt.Errorf("could not run ffprobe: %w", err)
 	}

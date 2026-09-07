@@ -85,7 +85,7 @@ func subscriptionTimeout(raw string) (time.Duration, string) {
 			seconds = parsed
 		}
 	}
-	return time.Duration(seconds) * time.Second, fmt.Sprintf("Second-%d", seconds)
+	return time.Duration(seconds) * time.Second, fmt.Sprintf("Second-%d", seconds) //nolint:gosec // seconds is bounded by time.Duration's maximum.
 }
 
 func subscriptionExpiry(timeout time.Duration) time.Time {
@@ -139,6 +139,7 @@ func (d *Device) handleSubscribe(w http.ResponseWriter, r *http.Request, urn URN
 		w.WriteHeader(http.StatusOK)
 		log.WithField("sid", newSID).WithField("callbacks", callbackHeader).Debug("accepted event subscription")
 
+		eventContext := context.WithoutCancel(r.Context())
 		go func() {
 			defer close(ready)
 			time.Sleep(50 * time.Millisecond)
@@ -148,7 +149,7 @@ func (d *Device) handleSubscribe(w http.ResponseWriter, r *http.Request, urn URN
 			if !subscribed {
 				return
 			}
-			if err := d.sendEvent(context.Background(), urn, urls, newSID, 0); err != nil {
+			if err := d.sendEvent(eventContext, urn, urls, newSID, 0); err != nil {
 				log.WithError(err).Warning("could not send initial event")
 			}
 		}()
@@ -221,9 +222,9 @@ func (d *Device) eventProperties(ctx context.Context, urn URN) []property {
 	values := make(map[string]string)
 	if service.SOAPInterface != nil {
 		call := func(action string, output interface{}) bool {
-			input := []byte(fmt.Sprintf(`<%s xmlns=%q/>`, action, urn))
+			input := fmt.Appendf(nil, `<%s xmlns=%q/>`, action, urn)
 			response, err := service.SOAPInterface.Call(ctx, string(urn), action, input)
-			return err == nil && xml.Unmarshal(response, output) == nil
+			return err == nil && xml.Unmarshal(response, output) == nil //nolint:gosec // Service responses are trusted local UPnP XML and decoded without entity expansion.
 		}
 
 		var update struct {

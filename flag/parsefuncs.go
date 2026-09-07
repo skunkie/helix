@@ -7,6 +7,7 @@ package flag
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -20,10 +21,8 @@ func RequiredString(raw string) (interface{}, error) {
 
 func StringEnum(values ...string) ParseFunc {
 	return func(raw string) (interface{}, error) {
-		for _, value := range values {
-			if value == raw {
-				return raw, nil
-			}
+		if slices.Contains(values, raw) {
+			return raw, nil
 		}
 		return raw, fmt.Errorf("must be one of %q", values)
 	}
@@ -36,7 +35,7 @@ func IntList(raw string) (interface{}, error) {
 		return ints, nil
 	}
 
-	for _, raw := range strings.Split(raw, ",") {
+	for raw := range strings.SplitSeq(raw, ",") {
 		i, err := strconv.Atoi(raw)
 		if err != nil {
 			return ints, err

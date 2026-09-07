@@ -40,7 +40,7 @@ func (csi *CommaSeparatedInts) UnmarshalText(raw []byte) error {
 	}
 
 	var ints []int
-	for _, str := range strings.Split(string(raw), ",") {
+	for str := range strings.SplitSeq(string(raw), ",") {
 		i, err := strconv.Atoi(str)
 		if err != nil {
 			return err

@@ -60,17 +60,17 @@ func ParseDuration(raw string) (Duration, error) {
 		case 1:
 			fraction, err := strconv.ParseFloat("0."+subseconds, 64)
 			if err != nil {
-				return Duration{0}, fmt.Errorf("could not parse milliseconds %q: %v", subseconds, err)
+				return Duration{0}, fmt.Errorf("could not parse milliseconds %q: %w", subseconds, err)
 			}
 			milliseconds = int(fraction * 1000)
 		case 2:
 			top, err := strconv.Atoi(fractions[0])
 			if err != nil {
-				return Duration{0}, fmt.Errorf("could not parse top of fraction %q: %v", fractions[0], err)
+				return Duration{0}, fmt.Errorf("could not parse top of fraction %q: %w", fractions[0], err)
 			}
 			bottom, err := strconv.Atoi(fractions[1])
 			if err != nil {
-				return Duration{0}, fmt.Errorf("could not parse bottom of fraction %q: %v", fractions[1], err)
+				return Duration{0}, fmt.Errorf("could not parse bottom of fraction %q: %w", fractions[1], err)
 			}
 			if bottom == 0 {
 				return Duration{0}, fmt.Errorf("fraction denominator must not be zero")
@@ -89,11 +89,11 @@ func (d Duration) String() string {
 	td := d.Duration
 
 	hours := time.Duration(td.Truncate(time.Hour).Hours())
-	td = td - (hours * time.Hour)
+	td -= hours * time.Hour
 	minutes := time.Duration(td.Truncate(time.Minute).Minutes())
-	td = td - (minutes * time.Minute)
+	td -= minutes * time.Minute
 	seconds := time.Duration(td.Truncate(time.Second).Seconds())
-	td = td - (seconds * time.Second)
+	td -= seconds * time.Second
 
 	if td == 0 {
 		return fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)

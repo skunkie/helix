@@ -70,7 +70,7 @@ USN: uuid:1234::upnp:rootdevice
 
 	for i, tt := range tests {
 		var want []byte
-		for _, line := range strings.Split(tt.want, "\n") {
+		for line := range strings.SplitSeq(tt.want, "\n") {
 			want = append(want, []byte(line)...)
 			want = append(want, []byte("\r\n")...)
 		}
@@ -124,7 +124,8 @@ func TestSendAndDoLoopback(t *testing.T) {
 	}
 
 	// Test Do
-	rsps, errs, err := Do(req, 1, nil)
+	rsps, errs, err := Do(req, 1, nil) //nolint:bodyclose // closeResponses closes every returned response below.
+	defer closeResponses(t, rsps)
 	if err != nil {
 		t.Errorf("Do returned connection error: %v", err)
 	}
@@ -154,11 +155,21 @@ func TestDoStopsWhenContextIsCanceled(t *testing.T) {
 	time.AfterFunc(20*time.Millisecond, cancel)
 
 	started := time.Now()
-	_, _, err = Do(req, 1, nil)
+	rsps, _, err := Do(req, 1, nil) //nolint:bodyclose // closeResponses closes every returned response below.
+	defer closeResponses(t, rsps)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("Do error = %v, want context.Canceled", err)
 	}
 	if elapsed := time.Since(started); elapsed > time.Second {
 		t.Fatalf("Do took %v to observe cancellation", elapsed)
+	}
+}
+
+func closeResponses(t *testing.T, responses []*http.Response) {
+	t.Helper()
+	for _, response := range responses {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("could not close response body: %v", err)
+		}
 	}
 }

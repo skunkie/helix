@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ethulhu/helix/httputil"
@@ -74,7 +75,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	defer func() { _ = conn.Close() }()
 
 	ctx := context.Background()
 
@@ -95,7 +95,7 @@ func main() {
 	m.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		msg := fmt.Sprintf("not found: %v %v %v", r.Method, r.URL, r.Form)
 		if r.URL.Path != "/favicon.ico" {
-			log.Print(msg)
+			log.Print(strings.NewReplacer("\r", `\r`, "\n", `\n`).Replace(msg)) //nolint:gosec // Request-controlled line breaks are escaped before logging.
 		}
 		http.Error(w, msg, http.StatusNotFound)
 	})
@@ -272,7 +272,11 @@ func main() {
 	m.Use(httputil.Log)
 
 	log.Printf("starting HTTP server on %v", conn.Addr())
-	if err := http.Serve(conn, m); err != nil {
+	httpServer := &http.Server{
+		Handler:           m,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	if err := httpServer.Serve(conn); err != nil {
 		log.Fatalf("HTTP server failed: %v", err)
 	}
 }

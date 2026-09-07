@@ -57,8 +57,8 @@ func main() {
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
 	state, status, err := transport.TransportInfo(ctx)
+	cancel()
 	if err != nil {
 		log.Fatalf("could not get media info: %v", err)
 	}

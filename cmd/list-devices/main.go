@@ -12,7 +12,7 @@ import (
 	"log"
 	"net"
 	"os"
-	"sort"
+	"slices"
 	"text/tabwriter"
 	"time"
 
@@ -38,8 +38,8 @@ func main() {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
 	devices, errs, err := upnp.DiscoverDevices(ctx, upnp.All, iface)
+	cancel()
 	if err != nil {
 		log.Fatalf("could not discover URLs: %v", err)
 	}
@@ -51,7 +51,7 @@ func main() {
 	for _, device := range devices {
 		urns := device.Services()
 
-		sort.Slice(urns, func(i, j int) bool { return urns[i] < urns[j] })
+		slices.Sort(urns)
 		for _, urn := range urns {
 			_, _ = fmt.Fprintf(w, "%v\t%v\t%v\n", device.Name, device.UDN, urn)
 		}

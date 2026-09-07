@@ -58,8 +58,8 @@ func main() {
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
 	sources, sinks, err := manager.ProtocolInfo(ctx)
+	cancel()
 	if err != nil {
 		log.Fatal(err)
 	}

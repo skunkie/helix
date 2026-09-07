@@ -49,13 +49,18 @@ var (
 func DiscoverURLs(ctx context.Context, urn URN, iface *net.Interface) ([]*url.URL, []error, error) {
 	req := discoverRequest(ctx, urn)
 
-	rsps, errs, err := httpu.Do(req, 3, iface)
+	rsps, errs, err := httpu.Do(req, 3, iface) //nolint:bodyclose // Every returned response is closed in the loop below.
 
 	locations := map[string]*url.URL{}
 	for _, rsp := range rsps {
 		location, err := rsp.Location()
+		closeErr := rsp.Body.Close()
 		if err != nil {
 			errs = append(errs, fmt.Errorf("could not find SSDP response Location: %w", err))
+			continue
+		}
+		if closeErr != nil {
+			errs = append(errs, fmt.Errorf("could not close SSDP response from %v: %w", location, closeErr))
 			continue
 		}
 		locations[location.String()] = location
@@ -133,7 +138,7 @@ func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Inte
 	}
 	conn, err := net.ListenMulticastUDP("udp", iface, ssdpBroadcastAddr)
 	if err != nil {
-		return fmt.Errorf("could not listen on %v: %v", ssdpBroadcastAddr, err)
+		return fmt.Errorf("could not listen on %v: %w", ssdpBroadcastAddr, err)
 	}
 	p := ipv4.NewPacketConn(conn)
 	_ = p.SetMulticastTTL(2)
@@ -174,7 +179,7 @@ func BroadcastDevice(ctx context.Context, d *Device, url string, iface *net.Inte
 	sendAlive := func() {
 		reqs := notifyAliveRequests(ctx, d, url)
 		for _, req := range reqs {
-			delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond)))
+			delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond))) //nolint:gosec // SSDP response timing does not require cryptographic randomness.
 			go func(req *http.Request) {
 				if !s.Running() {
 					return
@@ -341,7 +346,7 @@ func NotifyByeBye(ctx context.Context, d *Device, url string, iface *net.Interfa
 	var wg sync.WaitGroup
 	wg.Add(len(reqs))
 	for _, req := range reqs {
-		delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond)))
+		delay := time.Duration(rand.Int63n(int64(100 * time.Millisecond))) //nolint:gosec // SSDP notification timing does not require cryptographic randomness.
 		go func(req *http.Request) {
 			defer wg.Done()
 			<-time.After(delay)

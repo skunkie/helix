@@ -113,7 +113,7 @@ func main() {
 		ModelURL:         "https://ethulhu.co.uk",
 		SerialNumber:     "00000000",
 	}
-	device.SetBootID(uint(time.Now().Unix()))
+	device.SetBootID(uint(time.Now().Unix())) //nolint:gosec // Current Unix timestamps are valid UPnP boot identifiers on supported platforms.
 
 	metadataCache := media.NewMetadataCache()
 	if *disableMetadataCache {
@@ -143,7 +143,10 @@ func main() {
 	mux.HandleFunc("/objects/", objectsHandler)
 	mux.Handle("/upnp/", http.StripPrefix("/upnp", device.HTTPHandler("/upnp/")))
 
-	httpServer := &http.Server{Handler: mux}
+	httpServer := &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 	go func() {
 		log := log.WithField("http.listener", httpConn.Addr())
 		log.Info("serving HTTP")

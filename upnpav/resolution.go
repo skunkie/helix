@@ -25,12 +25,12 @@ func ParseResolution(raw string) (Resolution, error) {
 
 	width, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return Resolution{}, fmt.Errorf("could not parse width: %v", err)
+		return Resolution{}, fmt.Errorf("could not parse width: %w", err)
 	}
 
 	height, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return Resolution{}, fmt.Errorf("could not parse height: %v", err)
+		return Resolution{}, fmt.Errorf("could not parse height: %w", err)
 	}
 
 	return Resolution{Width: width, Height: height}, nil

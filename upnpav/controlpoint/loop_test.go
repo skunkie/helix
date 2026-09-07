@@ -477,9 +477,7 @@ func TestLoopContextCancel(t *testing.T) {
 }
 
 func TestLoopConcurrentAccess(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	loop := NewLoop(ctx)
+	loop := NewLoop(t.Context())
 
 	done := make(chan struct{})
 	go func() {
