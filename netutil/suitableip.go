@@ -18,8 +18,11 @@ func SuitableIP(iface *net.Interface) (net.IP, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not list addresses: %w", err)
 	}
+	return suitableIP(addrs, iface == nil)
+}
 
-	err = errors.New("interface has no addresses")
+func suitableIP(addrs []net.Addr, requirePrivate bool) (net.IP, error) {
+	err := errors.New("interface has no addresses")
 	for _, addr := range addrs {
 		addr, ok := addr.(*net.IPNet)
 		if !ok {
@@ -33,8 +36,7 @@ func SuitableIP(iface *net.Interface) (net.IP, error) {
 		ip := addr.IP.To4()
 
 		// Default IP must be a "LAN IP".
-		// TODO: support 172.16.0.0/12
-		if iface == nil && ip[0] != 10 && (ip[0] != 192 || ip[1] != 168) {
+		if requirePrivate && !ip.IsPrivate() {
 			err = errors.New("interface has no Private IPv4 addresses")
 			continue
 		}
