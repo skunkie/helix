@@ -92,7 +92,7 @@ func (c *client) TransportInfo(ctx context.Context) (State, Status, error) {
 	if err := c.call(ctx, getTransportInfo, req, &rsp); err != nil {
 		return State(""), Status(""), err
 	}
-	if rsp == (getTransportInfoResponse{}) {
+	if rsp.State == "" && rsp.Status == "" && rsp.Speed == "" {
 		return State(""), Status(""), errors.New("received an empty GetTransportInfoResponse")
 	}
 	return rsp.State, rsp.Status, nil

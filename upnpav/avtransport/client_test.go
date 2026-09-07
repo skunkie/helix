@@ -205,6 +205,15 @@ func TestClientTransportInfoDecodesResponse(t *testing.T) {
 	}
 }
 
+func TestClientTransportInfoRejectsEmptyResponse(t *testing.T) {
+	response := marshalResponse(t, getTransportInfoResponse{})
+	client := responseClient(t, getTransportInfo, response)
+
+	if _, _, err := client.TransportInfo(context.Background()); err == nil {
+		t.Fatal("TransportInfo accepted an empty response")
+	}
+}
+
 func TestClientMapsUPnPError(t *testing.T) {
 	client := NewClient(soapClientFunc(func(context.Context, string, string, []byte) ([]byte, error) {
 		return nil, upnpav.ErrInvalidArgs
