@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# SPDX-FileCopyrightText: 2020 Ethel Morgan
+# SPDX-FileCopyrightText: 2026 TorrPlay
 #
 # SPDX-License-Identifier: MIT
 
