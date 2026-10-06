@@ -249,6 +249,28 @@ func TestMatches(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "unknown property in or leaves the supported part matching",
+			obj:  item,
+			criteria: Query{
+				Expr: LogicExpr{
+					Op: Or,
+					SubExprs: []Expr{
+						BinaryExpr{Property: "upnp:artist", Op: Contains, Operand: "matrix"},
+						BinaryExpr{Property: "dc:title", Op: Contains, Operand: "matrix"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "unknown property counts as absent",
+			obj:  item,
+			criteria: Query{
+				Expr: ExistsExpr{Property: "unknown:prop", Exists: false},
+			},
+			want: true,
+		},
+		{
 			name: "unknown property in exists expr returns false",
 			obj:  item,
 			criteria: Query{

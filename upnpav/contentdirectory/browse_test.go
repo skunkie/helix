@@ -7,6 +7,7 @@ package contentdirectory
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -448,6 +449,29 @@ func (f *countingFakeHandler) Search(_ context.Context, id upnpav.ObjectID, crit
 		return f.searchDIDLLite.Paginate(startingIndex, requestedCount), total, nil
 	}
 	return nil, total, nil
+}
+
+func TestSearchInvalidCriteria(t *testing.T) {
+	fh := &countingFakeHandler{}
+	h := SOAPHandler{fh}
+
+	searchXML := []byte(`
+		<Search xmlns="urn:schemas-upnp-org:service:ContentDirectory:1">
+			<ContainerID>0</ContainerID>
+			<SearchCriteria>dc:title contains</SearchCriteria>
+			<Filter>*</Filter>
+			<StartingIndex>0</StartingIndex>
+			<RequestedCount>0</RequestedCount>
+		</Search>
+	`)
+
+	_, err := h.Call(context.Background(), string(Version1), "Search", searchXML)
+	if !errors.Is(err, ErrInvalidSearchCriteria) {
+		t.Fatalf("Call returned error %v, want %v", err, ErrInvalidSearchCriteria)
+	}
+	if fh.searchCriteria != nil {
+		t.Errorf("Search was called with %v, want no call for unparsable criteria", fh.searchCriteria)
+	}
 }
 
 func TestSearchPagination(t *testing.T) {

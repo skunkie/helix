@@ -209,7 +209,8 @@ func (h SOAPHandler) search(ctx context.Context, in []byte) ([]byte, error) {
 
 	criteria, err := search.Parse(req.SearchCriteria)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse search query: %w", err)
+		log.WithError(err).Warning("could not parse search criteria")
+		return nil, ErrInvalidSearchCriteria
 	}
 
 	didllite, totalMatches, err := h.Search(ctx, req.Container, criteria, req.StartingIndex, req.RequestedCount, req.SortCriteria)

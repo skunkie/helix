@@ -28,6 +28,11 @@ func Properties() []string {
 }
 
 // Matches returns true if the given UPnP object (Item or Container) matches the search criteria.
+// Conditions on properties not listed by Properties are false, and exists
+// treats those properties as absent, rather than failing the search, because
+// renderers often combine them with supported ones, as in
+// `dc:title contains "x" or upnp:artist contains "x"`, and still expect
+// results from the supported part.
 func Matches(obj interface{}, criteria Criteria) bool {
 	return MatchesWith(obj, criteria, ContainsFold)
 }
