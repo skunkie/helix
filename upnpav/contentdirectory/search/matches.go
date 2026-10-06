@@ -239,6 +239,10 @@ func compare(value, operand string) int {
 	return strings.Compare(strings.ToLower(value), strings.ToLower(operand))
 }
 
+// ClassIsDerivedFrom reports whether class is ancestor or a subclass of it,
+// comparing case-insensitively as the ContentDirectory search criteria
+// semantics require for strings.
 func ClassIsDerivedFrom(class, ancestor upnpav.Class) bool {
-	return class == ancestor || strings.HasPrefix(string(class), string(ancestor)+".")
+	c, a := strings.ToLower(string(class)), strings.ToLower(string(ancestor))
+	return c == a || strings.HasPrefix(c, a+".")
 }

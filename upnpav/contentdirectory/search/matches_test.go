@@ -415,6 +415,8 @@ func TestMatchesRelational(t *testing.T) {
 		{`upnp:class = "OBJECT.ITEM.VIDEOITEM"`, true},
 		{`upnp:class < "object.item.videoItem.movie"`, true},
 		{`dc:title > "A" and dc:title < "T"`, true},
+		{`upnp:class derivedfrom "Object.Item"`, true},
+		{`dc:title derivedfrom "sintel"`, false},
 	}
 
 	for _, tt := range tests {
@@ -520,6 +522,16 @@ func TestClassIsDerivedFrom(t *testing.T) {
 		{
 			class:    "object.item",
 			ancestor: "object.item.audioItem",
+			want:     false,
+		},
+		{
+			class:    "object.item.videoItem.movie",
+			ancestor: "OBJECT.ITEM.VIDEOITEM",
+			want:     true,
+		},
+		{
+			class:    "object.item.videoItemExtra",
+			ancestor: "object.item.videoitem",
 			want:     false,
 		},
 	}
