@@ -137,7 +137,6 @@ func (b BinaryExpr) CanonicalExpr() Expr {
 }
 
 // Parse parses a DLNA query string and returns a Criteria.
-// TODO: Support operator precidence for And and Or (And binds stronger than Or).
 func Parse(src string) (Criteria, error) {
 	tokens, err := tokenize(src)
 	if err != nil {

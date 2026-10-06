@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2020 Ethel Morgan
+// SPDX-FileCopyrightText: 2026 TorrPlay
 //
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +7,6 @@ package search
 
 import (
 	"errors"
-	"fmt"
 )
 
 func consumeToken(tokens []token) (token, []token) {
@@ -44,54 +44,58 @@ func query(tokens []token) (Criteria, error) {
 	}
 }
 
+// parser consumes a prefix of tokens and returns the remaining tokens with the
+// parsed expression.
+type parser func(tokens []token) ([]token, Expr, error)
+
+// expression parses `or`-separated groups of `and`-separated terms, so `and`
+// binds more tightly than `or` as the ContentDirectory grammar requires.
 func expression(tokens []token) ([]token, Expr, error) {
-	var err error
-	var expr Expr
-	var t token
-	switch peekToken(tokens).Kind {
-	case openParenthesis:
-		_, tokens = consumeToken(tokens)
-		tokens, expr, err = expression(tokens)
-		if err != nil {
-			return nil, expr, err
-		}
-		if t, tokens = consumeToken(tokens); t.Kind != closeParenthesis {
-			return nil, expr, errors.New("could not match '(' with ')'")
-		}
-	default:
-		tokens, expr, err = binaryExpression(tokens)
-		if err != nil {
-			return nil, expr, err
-		}
-	}
-	switch peekToken(tokens) {
-	case token{bareString, "and"}:
-		fallthrough
-	case token{bareString, "or"}:
-		return logicExpression(expr, tokens)
-	default:
-		return tokens, expr, nil
-	}
+	return logicExpression(tokens, Or, andExpression)
 }
 
-func logicExpression(expr1 Expr, tokens []token) ([]token, Expr, error) {
-	var err error
-	var expr2 Expr
-	var t token
-	var op LogicOp
-	switch t, tokens = consumeToken(tokens); t {
-	case token{bareString, "and"}:
-		op = And
-	case token{bareString, "or"}:
-		op = Or
-	default:
-		panic(fmt.Sprintf("got into logicExpression with token %+v", t))
+func andExpression(tokens []token) ([]token, Expr, error) {
+	return logicExpression(tokens, And, term)
+}
+
+// logicExpression parses one or more operands joined by op into a single flat
+// LogicExpr, returning a lone operand unwrapped.
+func logicExpression(tokens []token, op LogicOp, operand parser) ([]token, Expr, error) {
+	var exprs []Expr
+	for {
+		var err error
+		var expr Expr
+		tokens, expr, err = operand(tokens)
+		if err != nil {
+			return nil, nil, err
+		}
+		exprs = append(exprs, expr)
+
+		if peekToken(tokens) != (token{bareString, string(op)}) {
+			break
+		}
+		_, tokens = consumeToken(tokens)
 	}
-	tokens, expr2, err = expression(tokens)
+	if len(exprs) == 1 {
+		return tokens, exprs[0], nil
+	}
+	return tokens, LogicExpr{op, exprs}, nil
+}
+
+func term(tokens []token) ([]token, Expr, error) {
+	if peekToken(tokens).Kind != openParenthesis {
+		return binaryExpression(tokens)
+	}
+	_, tokens = consumeToken(tokens)
+	tokens, expr, err := expression(tokens)
 	if err != nil {
-		return nil, expr1, err
+		return nil, nil, err
 	}
-	return tokens, LogicExpr{op, []Expr{expr1, expr2}}, nil
+	var t token
+	if t, tokens = consumeToken(tokens); t.Kind != closeParenthesis {
+		return nil, nil, errors.New("could not match '(' with ')'")
+	}
+	return tokens, expr, nil
 }
 
 func binaryExpression(tokens []token) ([]token, Expr, error) {
