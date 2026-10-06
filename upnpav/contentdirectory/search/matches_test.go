@@ -395,6 +395,63 @@ func TestPropertiesAreEvaluated(t *testing.T) {
 	}
 }
 
+func TestMatchesRelational(t *testing.T) {
+	item := upnpav.Item{ID: "10", Parent: "folder-0", Class: upnpav.VideoItem, Title: "Sintel"}
+
+	tests := []struct {
+		criteria string
+		want     bool
+	}{
+		{`dc:title < "Tears of Steel"`, true},
+		{`dc:title <= "SINTEL"`, true},
+		{`dc:title > "big buck bunny"`, true},
+		{`dc:title >= "tears"`, false},
+		{`dc:title = "sintel"`, true},
+		{`dc:title != "SINTEL"`, false},
+		{`@id > "9"`, true},
+		{`@id = "+10"`, true},
+		{`@id < "-1"`, false},
+		{`@parentID > "folder-1"`, false},
+		{`upnp:class = "OBJECT.ITEM.VIDEOITEM"`, true},
+		{`upnp:class < "object.item.videoItem.movie"`, true},
+		{`dc:title > "A" and dc:title < "T"`, true},
+	}
+
+	for _, tt := range tests {
+		criteria, err := Parse(tt.criteria)
+		if err != nil {
+			t.Fatalf("Parse(%q) returned error: %v", tt.criteria, err)
+		}
+		if got := Matches(item, criteria); got != tt.want {
+			t.Errorf("Matches(%s) = %v, want %v", tt.criteria, got, tt.want)
+		}
+	}
+}
+
+func TestCompare(t *testing.T) {
+	tests := []struct {
+		value, operand string
+		want           int
+	}{
+		{"10", "9", 1},
+		{"-5", "3", -1},
+		{"+7", "7", 0},
+		{"007", "7", 0},
+		{"10", "9a", -1},
+		{"1.5", "10", -1},
+		{"1.5", "1.10", 1},
+		{"Apple", "apple", 0},
+		{"apple", "Banana", -1},
+		{"", "a", -1},
+	}
+
+	for _, tt := range tests {
+		if got := compare(tt.value, tt.operand); got != tt.want {
+			t.Errorf("compare(%q, %q) = %d, want %d", tt.value, tt.operand, got, tt.want)
+		}
+	}
+}
+
 func TestClassIsDerivedFrom(t *testing.T) {
 	tests := []struct {
 		class    upnpav.Class

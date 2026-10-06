@@ -5,6 +5,8 @@
 package search
 
 import (
+	"cmp"
+	"strconv"
 	"strings"
 
 	"github.com/ethulhu/helix/upnpav"
@@ -124,18 +126,6 @@ func binaryExprMatches(obj interface{}, expr BinaryExpr, contains ContainsFunc) 
 		return false
 	}
 
-	if expr.Property == "upnp:class" {
-		targetClass := upnpav.Class(expr.Operand)
-		switch expr.Op {
-		case DerivedFrom:
-			return ClassIsDerivedFrom(class, targetClass)
-		case Equal:
-			return class == targetClass
-		case NotEqual:
-			return class != targetClass
-		}
-	}
-
 	var property, propValue string
 	switch expr.Property {
 	case "upnp:class":
@@ -154,13 +144,23 @@ func binaryExprMatches(obj interface{}, expr BinaryExpr, contains ContainsFunc) 
 
 	switch expr.Op {
 	case Equal:
-		return strings.EqualFold(propValue, expr.Operand) || propValue == expr.Operand
+		return compare(propValue, expr.Operand) == 0
 	case NotEqual:
-		return !strings.EqualFold(propValue, expr.Operand) && propValue != expr.Operand
+		return compare(propValue, expr.Operand) != 0
+	case LessThan:
+		return compare(propValue, expr.Operand) < 0
+	case LessThanEqual:
+		return compare(propValue, expr.Operand) <= 0
+	case GreaterThan:
+		return compare(propValue, expr.Operand) > 0
+	case GreaterThanEqual:
+		return compare(propValue, expr.Operand) >= 0
 	case Contains:
 		return contains(property, propValue, expr.Operand)
 	case DoesNotContain:
 		return !contains(property, propValue, expr.Operand)
+	case DerivedFrom:
+		return property == "upnp:class" && ClassIsDerivedFrom(class, upnpav.Class(expr.Operand))
 	default:
 		return false
 	}
@@ -218,6 +218,18 @@ func existsExprMatches(obj interface{}, expr ExistsExpr) bool {
 	}
 
 	return hasProp == expr.Exists
+}
+
+// compare orders a property value against an operand as the ContentDirectory
+// search criteria semantics require: numerically when both are decimal
+// integers with an optional sign, and otherwise as case-insensitive strings.
+func compare(value, operand string) int {
+	if v, err := strconv.ParseInt(value, 10, 64); err == nil {
+		if o, err := strconv.ParseInt(operand, 10, 64); err == nil {
+			return cmp.Compare(v, o)
+		}
+	}
+	return strings.Compare(strings.ToLower(value), strings.ToLower(operand))
 }
 
 func ClassIsDerivedFrom(class, ancestor upnpav.Class) bool {
