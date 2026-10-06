@@ -291,7 +291,7 @@ func TestMatches(t *testing.T) {
 }
 
 func TestMatchesWith(t *testing.T) {
-	item := upnpav.Item{ID: "item.1", Class: upnpav.VideoItem, Title: "Sintel.2010.1080p"}
+	item := upnpav.Item{ID: "item.1", Parent: "folder.0", RefID: "item.0", Class: upnpav.VideoItem, Title: "Sintel.2010.1080p"}
 	wordContains := func(property, value, operand string) bool {
 		if property != "dc:title" {
 			return ContainsFold(property, value, operand)
@@ -425,6 +425,50 @@ func TestMatchesRelational(t *testing.T) {
 		if got := Matches(item, criteria); got != tt.want {
 			t.Errorf("Matches(%s) = %v, want %v", tt.criteria, got, tt.want)
 		}
+	}
+}
+
+func TestMatchesAbsentProperty(t *testing.T) {
+	item := upnpav.Item{ID: "item-1", Parent: "folder-0", Class: upnpav.VideoItem, Title: "Sintel"}
+	called := false
+	spy := func(property, value, operand string) bool {
+		called = true
+		return ContainsFold(property, value, operand)
+	}
+
+	for _, src := range []string{
+		`@refID = ""`,
+		`@refID != "x"`,
+		`@refID < "x"`,
+		`@refID >= ""`,
+		`@refID contains ""`,
+		`@refID doesNotContain "x"`,
+		`upnp:class derivedfrom "object.item" and @refID != "x"`,
+		`@refID derivedfrom ""`,
+	} {
+		criteria, err := Parse(src)
+		if err != nil {
+			t.Fatalf("Parse(%q) returned error: %v", src, err)
+		}
+		if MatchesWith(item, criteria, spy) {
+			t.Errorf("MatchesWith(%s) = true, want false for an item without @refID", src)
+		}
+	}
+	if called {
+		t.Error("ContainsFunc was called for an absent property")
+	}
+
+	criteria, err := Parse(`@refID exists false or @refID != "x"`)
+	if err != nil {
+		t.Fatalf("Parse returned error: %v", err)
+	}
+	if !Matches(item, criteria) {
+		t.Errorf("Matches(%s) = false, want true through exists false", criteria)
+	}
+
+	classless := upnpav.Container{ID: "folder-0", Title: "Movies"}
+	if criteria := (Query{BinaryExpr{"upnp:class", DerivedFrom, ""}}); Matches(classless, criteria) {
+		t.Errorf("Matches(%s) = true, want false for an object without a class", criteria)
 	}
 }
 

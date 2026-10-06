@@ -15,7 +15,8 @@ import (
 // ContainsFunc reports whether the value of property contains operand. It
 // decides the `contains` operator, and its negation decides `doesNotContain`.
 // Property is always given in its canonical form, so the aliases `id`,
-// `parentID`, and `refID` arrive as `@id`, `@parentID`, and `@refID`.
+// `parentID`, and `refID` arrive as `@id`, `@parentID`, and `@refID`, and
+// value is never empty because absent properties fail before it is called.
 type ContainsFunc func(property, value, operand string) bool
 
 // ContainsFold is the default ContainsFunc: a case-insensitive substring test.
@@ -30,6 +31,8 @@ func Properties() []string {
 }
 
 // Matches returns true if the given UPnP object (Item or Container) matches the search criteria.
+// An empty property value counts as absent, and value conditions on an absent
+// property are false, even negated ones such as != and doesNotContain.
 // Conditions on properties not listed by Properties are false, and exists
 // treats those properties as absent, rather than failing the search, because
 // renderers often combine them with supported ones, as in
@@ -139,6 +142,10 @@ func binaryExprMatches(obj interface{}, expr BinaryExpr, contains ContainsFunc) 
 	case "@refID", "refID":
 		property, propValue = "@refID", refID
 	default:
+		return false
+	}
+	if propValue == "" {
+		// An object without the property fails every value condition on it.
 		return false
 	}
 
