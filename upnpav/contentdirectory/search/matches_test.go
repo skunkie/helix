@@ -209,6 +209,38 @@ func TestMatches(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "contains on class",
+			obj:  item,
+			criteria: Query{
+				Expr: BinaryExpr{Property: "upnp:class", Op: Contains, Operand: "VIDEOITEM"},
+			},
+			want: true,
+		},
+		{
+			name: "doesNotContain on class",
+			obj:  item,
+			criteria: Query{
+				Expr: BinaryExpr{Property: "upnp:class", Op: DoesNotContain, Operand: "audioItem"},
+			},
+			want: true,
+		},
+		{
+			name: "exists on class",
+			obj:  container,
+			criteria: Query{
+				Expr: ExistsExpr{Property: "upnp:class", Exists: true},
+			},
+			want: true,
+		},
+		{
+			name: "exists on parentID",
+			obj:  item,
+			criteria: Query{
+				Expr: ExistsExpr{Property: "@parentID", Exists: true},
+			},
+			want: true,
+		},
+		{
 			name: "unknown property in binary expr returns false",
 			obj:  item,
 			criteria: Query{
@@ -292,13 +324,14 @@ func TestMatchesWith(t *testing.T) {
 
 	t.Run("passes canonical property names", func(t *testing.T) {
 		for alias, canonical := range map[string]string{
-			"id":        "@id",
-			"@id":       "@id",
-			"parentID":  "@parentID",
-			"@parentID": "@parentID",
-			"refID":     "@refID",
-			"@refID":    "@refID",
-			"dc:title":  "dc:title",
+			"id":         "@id",
+			"@id":        "@id",
+			"parentID":   "@parentID",
+			"@parentID":  "@parentID",
+			"refID":      "@refID",
+			"@refID":     "@refID",
+			"dc:title":   "dc:title",
+			"upnp:class": "upnp:class",
 		} {
 			var got string
 			record := func(property, _, _ string) bool {
@@ -311,6 +344,33 @@ func TestMatchesWith(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestPropertiesAreEvaluated(t *testing.T) {
+	item := upnpav.Item{ID: "item-1", Parent: "folder-0", RefID: "item-0", Class: upnpav.VideoItem, Title: "Sintel"}
+	values := map[string]string{
+		"dc:title":   item.Title,
+		"upnp:class": string(item.Class),
+		"@id":        string(item.ID),
+		"@parentID":  string(item.Parent),
+		"@refID":     item.RefID,
+	}
+	for _, property := range Properties() {
+		value, ok := values[property]
+		if !ok {
+			t.Errorf("no test value for property %s", property)
+			continue
+		}
+		for _, expr := range []Expr{
+			ExistsExpr{Property: property, Exists: true},
+			BinaryExpr{Property: property, Op: Equal, Operand: value},
+			BinaryExpr{Property: property, Op: Contains, Operand: value[1:]},
+		} {
+			if !Matches(item, Query{Expr: expr}) {
+				t.Errorf("Matches(%s) = false for an item with every property set", expr)
+			}
+		}
+	}
 }
 
 func TestClassIsDerivedFrom(t *testing.T) {

@@ -239,7 +239,7 @@ func (cd *ContentDirectory) BrowseChildren(_ context.Context, parent upnpav.Obje
 }
 
 func (cd *ContentDirectory) SearchCapabilities(_ context.Context) ([]string, error) {
-	return []string{"dc:title"}, nil
+	return search.Properties(), nil
 }
 func (cd *ContentDirectory) SortCapabilities(_ context.Context) ([]string, error) {
 	return []string{"dc:title"}, nil

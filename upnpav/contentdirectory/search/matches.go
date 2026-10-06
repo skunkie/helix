@@ -21,6 +21,12 @@ func ContainsFold(_, value, operand string) bool {
 	return strings.Contains(strings.ToLower(value), strings.ToLower(operand))
 }
 
+// Properties returns the properties that Matches evaluates, in their canonical
+// form, for a ContentDirectory to advertise as its search capabilities.
+func Properties() []string {
+	return []string{"dc:title", "upnp:class", "@id", "@parentID", "@refID"}
+}
+
 // Matches returns true if the given UPnP object (Item or Container) matches the search criteria.
 func Matches(obj interface{}, criteria Criteria) bool {
 	return MatchesWith(obj, criteria, ContainsFold)
@@ -127,6 +133,8 @@ func binaryExprMatches(obj interface{}, expr BinaryExpr, contains ContainsFunc) 
 
 	var property, propValue string
 	switch expr.Property {
+	case "upnp:class":
+		property, propValue = "upnp:class", string(class)
 	case "dc:title":
 		property, propValue = "dc:title", title
 	case "@id", "id":
@@ -156,32 +164,46 @@ func binaryExprMatches(obj interface{}, expr BinaryExpr, contains ContainsFunc) 
 func existsExprMatches(obj interface{}, expr ExistsExpr) bool {
 	var hasProp bool
 
+	var class upnpav.Class
 	var title string
 	var refID string
 	var id string
+	var parentID string
 
 	switch o := obj.(type) {
 	case upnpav.Item:
+		class = o.Class
 		title = o.Title
 		refID = o.RefID
 		id = string(o.ID)
+		parentID = string(o.Parent)
 	case *upnpav.Item:
+		class = o.Class
 		title = o.Title
 		refID = o.RefID
 		id = string(o.ID)
+		parentID = string(o.Parent)
 	case upnpav.Container:
+		class = o.Class
 		title = o.Title
 		id = string(o.ID)
+		parentID = string(o.Parent)
 	case *upnpav.Container:
+		class = o.Class
 		title = o.Title
 		id = string(o.ID)
+		parentID = string(o.Parent)
 	default:
 		return false
 	}
 
 	switch expr.Property {
+	case "upnp:class":
+		hasProp = class != ""
 	case "dc:title":
 		hasProp = title != ""
+	case "@parentID", "parentID":
+		hasProp = parentID != ""
 	case "@refID", "refID":
 		hasProp = refID != ""
 	case "@id", "id":

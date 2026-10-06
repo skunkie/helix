@@ -152,6 +152,17 @@ func (m *mockMetadataCache) MetadataForPaths(paths []string) []*media.Metadata {
 
 func (m *mockMetadataCache) Warm(p string) {}
 
+func TestSearchCapabilitiesAdvertiseMatchedProperties(t *testing.T) {
+	cd := &ContentDirectory{}
+	got, err := cd.SearchCapabilities(context.Background())
+	if err != nil {
+		t.Fatalf("SearchCapabilities() returned error: %v", err)
+	}
+	if want := search.Properties(); !reflect.DeepEqual(got, want) {
+		t.Errorf("SearchCapabilities() = %v, want %v", got, want)
+	}
+}
+
 func TestSearch(t *testing.T) {
 	tmpdir, err := os.MkdirTemp("", "helix-fileserver-test")
 	if err != nil {
