@@ -130,10 +130,19 @@ func (e ExistsExpr) CanonicalExpr() Expr {
 }
 
 func (b BinaryExpr) String() string {
-	return fmt.Sprintf("%v %v %q", b.Property, b.Op, b.Operand)
+	return fmt.Sprintf("%v %v %s", b.Property, b.Op, quote(b.Operand))
 }
 func (b BinaryExpr) CanonicalExpr() Expr {
 	return b
+}
+
+// operandEscaper escapes the only two characters that the criteria grammar
+// escapes inside quoted strings; Go's %q would also escape characters such
+// as tabs and newlines in ways that Parse rejects.
+var operandEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+
+func quote(s string) string {
+	return `"` + operandEscaper.Replace(s) + `"`
 }
 
 // Parse parses a DLNA query string and returns a Criteria.

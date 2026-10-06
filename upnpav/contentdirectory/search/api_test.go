@@ -324,3 +324,24 @@ func TestCriteriaString(t *testing.T) {
 		}
 	}
 }
+
+func TestCriteriaStringRoundTrip(t *testing.T) {
+	for _, operand := range []string{
+		`plain`,
+		`quote " and backslash \`,
+		"tab\there",
+		"line\nbreak",
+		"zero\u200bwidth",
+		"Amélie",
+	} {
+		want := Query{BinaryExpr{"dc:title", Contains, operand}}
+		got, err := Parse(want.String())
+		if err != nil {
+			t.Errorf("Parse(%q) returned error: %v", want.String(), err)
+			continue
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("Parse(%q) = %#v, want %#v", want.String(), got, want)
+		}
+	}
+}
