@@ -59,6 +59,19 @@ func TestTokenize(t *testing.T) {
 			wantErr: nil,
 		},
 		{
+			query: `@id = "1" and res@size exists true`,
+			want: []token{
+				{bareString, "@id"},
+				{equal, "="},
+				{quotedString, "1"},
+				{bareString, "and"},
+				{bareString, "res@size"},
+				{bareString, "exists"},
+				{bareString, "true"},
+			},
+			wantErr: nil,
+		},
+		{
 			query:   `"foo \a bar"`,
 			want:    nil,
 			wantErr: fmt.Errorf("unknown escaped character: \\a"),

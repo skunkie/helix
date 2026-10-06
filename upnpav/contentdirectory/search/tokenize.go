@@ -116,7 +116,7 @@ func tokenize(src string) ([]token, error) {
 			tokens = append(tokens, token{closeParenthesis, ")"})
 		case r == '"':
 			inQuotedString = true
-		case r == '.' || r == ':' || unicode.IsLetter(r):
+		case r == '.' || r == ':' || r == '@' || unicode.IsLetter(r):
 			tmp = append(tmp, r)
 		default:
 			return tokens, fmt.Errorf("unexpected bare character: %v", string(r))

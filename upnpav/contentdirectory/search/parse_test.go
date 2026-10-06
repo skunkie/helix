@@ -180,6 +180,22 @@ func TestParse(t *testing.T) {
 		// },
 		// },
 		{
+			raw:  `@id = "1"`,
+			want: Query{BinaryExpr{"@id", Equal, "1"}},
+		},
+		{
+			raw:  `@parentID = "0"`,
+			want: Query{BinaryExpr{"@parentID", Equal, "0"}},
+		},
+		{
+			raw:  `@refID exists true`,
+			want: Query{ExistsExpr{"@refID", true}},
+		},
+		{
+			raw:  `res@size exists true`,
+			want: Query{ExistsExpr{"res@size", true}},
+		},
+		{
 			raw:       `banana exists true and`,
 			wantError: true,
 		},
