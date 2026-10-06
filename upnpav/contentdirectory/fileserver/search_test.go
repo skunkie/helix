@@ -163,6 +163,7 @@ func TestSearch(t *testing.T) {
 		"video1.mp4",
 		"audio1.mp3",
 		"video2.mkv",
+		"Sintel.2010.1080p.mkv",
 		"not-media.txt",
 	}
 	for _, file := range files {
@@ -189,7 +190,7 @@ func TestSearch(t *testing.T) {
 		{
 			name:       "Search for videos",
 			criteria:   `upnp:class derivedfrom "object.item.videoItem"`,
-			wantTitles: []string{"video1.mp4", "video2.mkv"},
+			wantTitles: []string{"video1.mp4", "video2.mkv", "Sintel.2010.1080p.mkv"},
 		},
 		{
 			name:       "Search for audio",
@@ -200,6 +201,31 @@ func TestSearch(t *testing.T) {
 			name:       "Search by title",
 			criteria:   `dc:title = "video1.mp4"`,
 			wantTitles: []string{"video1.mp4"},
+		},
+		{
+			name:       "Title contains words across separators",
+			criteria:   `dc:title contains "sintel 2010"`,
+			wantTitles: []string{"Sintel.2010.1080p.mkv"},
+		},
+		{
+			name:       "Title contains the separated form",
+			criteria:   `dc:title contains "SINTEL.2010"`,
+			wantTitles: []string{"Sintel.2010.1080p.mkv"},
+		},
+		{
+			name:       "Title contains a plain substring",
+			criteria:   `dc:title contains "video"`,
+			wantTitles: []string{"video1.mp4", "video2.mkv"},
+		},
+		{
+			name:       "Title does not contain words across separators",
+			criteria:   `upnp:class derivedfrom "object.item.videoItem" and dc:title doesNotContain "sintel 2010"`,
+			wantTitles: []string{"video1.mp4", "video2.mkv"},
+		},
+		{
+			name:       "Other properties keep substring matching",
+			criteria:   `@id contains "sintel 2010"`,
+			wantTitles: nil,
 		},
 		{
 			name:       "No results",
